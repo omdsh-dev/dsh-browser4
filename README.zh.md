@@ -11,14 +11,17 @@
 - [🤖 Browser4](#-browser4)
   - [🌟 项目简介](#-项目简介)
     - [✨ 核心能力](#-核心能力)
+  - [📦 安装](#-安装)
+    - [检查并安装 DeepSeek Harness（DSH）](#1-检查并安装-deepseek-harnessdsh)
+    - [安装 browser4 插件](#2-安装-browser4-插件)
+    - [启动 DSH](#3-启动-dsh)
+    - [安装 browser4-cli（可选）](#安装-browser4-cli可选)
   - [快速开始](#快速开始)
   - [🧭 工具选择指南](#-工具选择指南)
     - [如何与页面交互](#如何与页面交互)
     - [如何提取数据](#如何提取数据)
     - [如何批量处理页面](#如何批量处理页面)
     - [如何把 HTML 转成电子表格——零 Token](#如何把-html-转成电子表格零-token)
-  - [📦 安装](#-安装)
-    - [安装 DeepSeek Harness（DSH）](#安装-deepseek-harnessdsh)
   - [💡 面向人的 CLI 指南](#-面向人的-cli-指南)
     - [快速上手](#快速上手)
     - [心智模型](#心智模型)
@@ -52,6 +55,80 @@
 * ⚡ **高性能架构** — 协程安全设计，支持单机每天 10 万～20 万复杂网页访问。
 * 🧬 **智能数据管线** — 融合 LLM、ML、X-SQL 与选择器，实现复杂网页的数据提取、清洗与经验复用。
 * 📦 **企业级自动化平台** — 支持大规模爬取、CDP 原生控制、批处理、有状态浏览、插件扩展等能力。
+
+## 📦 安装
+
+### 1. 检查并安装 DeepSeek Harness（DSH）
+
+先检查本地是否已经安装 DSH：
+
+```sh
+dsh --version
+```
+
+如果命令能够正常输出版本号，说明 DSH 已就绪，可直接进入下一步。如果提示找不到命令，请根据操作系统安装。
+
+**macOS**
+
+安装 Node.js 20 或更高版本，然后安装 DSH：
+
+```sh
+brew install node
+npm install -g @deepseek-ai/dsh
+```
+
+**Windows**
+
+在 PowerShell 中安装 Node.js LTS：
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+安装完成后重新打开 PowerShell，再安装 DSH：
+
+```powershell
+npm install -g @deepseek-ai/dsh
+```
+
+安装后再次运行 `dsh --version`，确认 DSH 可以正常使用。
+
+### 2. 安装 browser4 插件
+
+```sh
+dsh plugin --profile web add github:platonai/dsh-browser4
+```
+
+### 3. 启动 DSH
+
+```sh
+dsh web
+```
+
+### 安装 browser4-cli（可选）
+
+DSH 会在需要时自动安装 Browser4，因此手动安装 browser4-cli 是可选的。仅当你想在 DSH 之外单独使用 browser4-cli，或者 AI 智能体在阅读 SKILL 后被要求自行安装时才需要。
+
+通过 npm 全局安装 browser4-cli（需要 Node.js）：
+
+```shell
+npm install -g browser4-cli
+browser4-cli install
+```
+
+或者用单条命令直接引导安装原生二进制：
+
+**Windows（PowerShell）：**
+```powershell
+irm https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.ps1 | iex
+browser4-cli install
+```
+
+**Linux / macOS（bash）：**
+```bash
+curl -fsSL https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.sh | bash
+browser4-cli install
+```
 
 ## 快速开始
 
@@ -149,66 +226,6 @@ browser4-cli snapshot -i
 > **Pipeline：** `encode`（HTML → 特征向量 → CSV）→ `cluster`（KMeans，自动检测 K）→ `views`（HTML 报告 + Excel）。免费版使用 [SMILE](https://haifengl.github.io/) ML 库进行单机聚类（< 1,000 页）。需要 JDK 17+。安装说明见 [web-miner](https://github.com/platonai/web-miner)。
 
 ---
-
-## 📦 安装
-
-手动安装是可选的，因为 AI 智能体在阅读 SKILL 后通常可以自行完成安装。
-
-通过 npm 全局安装 browser4-cli（需要 Node.js）：
-
-```shell
-npm install -g browser4-cli
-browser4-cli install
-```
-
-或者用单条命令直接引导安装原生二进制：
-
-**Windows（PowerShell）：**
-```powershell
-irm https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.ps1 | iex
-browser4-cli install
-```
-
-**Linux / macOS（bash）：**
-```bash
-curl -fsSL https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.sh | bash
-browser4-cli install
-```
-
-### 安装 DeepSeek Harness（DSH）
-
-如果你想把 Browser4 作为插件在 DeepSeek Harness（DSH）中使用，先检查本地是否已经安装 DSH：
-
-```sh
-dsh --version
-```
-
-如果命令能够正常输出版本号，说明 DSH 已就绪，可直接进入下一步。如果提示找不到命令，请根据操作系统安装。
-
-**macOS**
-
-安装 Node.js 20 或更高版本，然后安装 DSH：
-
-```sh
-brew install node
-npm install -g @deepseek-ai/dsh
-```
-
-**Windows**
-
-在 PowerShell 中安装 Node.js LTS：
-
-```powershell
-winget install OpenJS.NodeJS.LTS
-```
-
-安装完成后重新打开 PowerShell，再安装 DSH：
-
-```powershell
-npm install -g @deepseek-ai/dsh
-```
-
-安装后再次运行 `dsh --version`，确认 DSH 可以正常使用，然后用 `dsh web` 启动。
 
 ## 💡 面向人的 CLI 指南
 

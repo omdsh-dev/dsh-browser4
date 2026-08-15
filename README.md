@@ -11,14 +11,17 @@ English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platon
 - [🤖 Browser4](#-browser4)
   - [🌟 Introduction](#-introduction)
     - [✨ Key Capabilities](#-key-capabilities)
+  - [📦 Installation](#-installation)
+    - [Install DeepSeek Harness (DSH)](#1-install-deepseek-harness-dsh)
+    - [Install the browser4 plugin](#2-install-the-browser4-plugin)
+    - [Start DSH](#3-start-dsh)
+    - [Install browser4-cli (Optional)](#install-browser4-cli-optional)
   - [Quick Start](#quick-start)
   - [🧭 Tool Selection Guide](#-tool-selection-guide)
     - [How to Interact with a Page](#how-to-interact-with-a-page)
     - [How to Extract Data](#how-to-extract-data)
     - [How to Process at Scale](#how-to-process-at-scale)
     - [How to Turn HTML into Spreadsheets — Zero Tokens](#how-to-turn-html-into-spreadsheets--zero-tokens)
-  - [📦 Installation](#-installation)
-    - [Install DeepSeek Harness (DSH)](#install-deepseek-harness-dsh)
   - [💡 CLI Guide for Humans](#-cli-guide-for-humans)
     - [Quick start](#quick-start-1)
     - [Mental model](#mental-model)
@@ -48,6 +51,80 @@ English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platon
 * ⚡ **High-Performance Runtime** — Coroutine-safe architecture supporting 100k–200k complex page visits per machine per day.
 * 🧬 **Hybrid Intelligence** — Combine LLM, ML, X-SQL, and selectors for robust extraction and experience reuse.
 * 📦 **Enterprise-Scale Automation** — Swarm crawling, CDP-native control, batch jobs, stateful sessions, plugins, extensions, and more.
+
+## 📦 Installation
+
+### 1. Install DeepSeek Harness (DSH)
+
+First check whether DSH is already installed:
+
+```sh
+dsh --version
+```
+
+If the command prints a version number, DSH is ready — go to the next step. If the command is not found, install it by OS:
+
+**macOS**
+
+Install Node.js 20 or later, then install DSH:
+
+```sh
+brew install node
+npm install -g @deepseek-ai/dsh
+```
+
+**Windows**
+
+Install Node.js LTS in PowerShell:
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+Reopen PowerShell after installation, then install DSH:
+
+```powershell
+npm install -g @deepseek-ai/dsh
+```
+
+Run `dsh --version` again to confirm DSH works.
+
+### 2. Install the browser4 plugin
+
+```sh
+dsh plugin --profile web add github:platonai/dsh-browser4
+```
+
+### 3. Start DSH
+
+```sh
+dsh web
+```
+
+### Install browser4-cli (Optional)
+
+DSH automatically installs Browser4 when needed, so installing browser4-cli manually is optional. Only do this if you want to use browser4-cli outside DSH, or your AI agent is asked to install it after reading the SKILL.
+
+Install browser4-cli globally using npm (requires Node.js):
+
+```shell
+npm install -g browser4-cli
+browser4-cli install
+```
+
+Or bootstrap the native binary directly with a single command:
+
+**Windows (PowerShell):**
+```powershell
+irm https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.ps1 | iex
+browser4-cli install
+```
+
+**Linux / macOS (bash):**
+```bash
+curl -fsSL https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.sh | bash
+browser4-cli install
+```
 
 ## Quick Start
 
@@ -130,66 +207,6 @@ Have HTML files and want structured data — without tokens?
 > **Pipeline:** `encode` (HTML → feature vectors → CSV) → `cluster` (KMeans, auto-detected K) → `views` (HTML report + Excel). Free tier uses the [SMILE](https://haifengl.github.io/) ML library for single-machine clustering (< 1,000 pages). Requires JDK 17+. See [web-miner](https://github.com/platonai/web-miner) for install instructions.
 
 ---
-
-## 📦 Installation
-
-Manually installation is optional since your AI agent is smart enough to install it after reading the SKILL.
-
-Install browser4-cli globally using npm (requires Node.js):
-
-```shell
-npm install -g browser4-cli
-browser4-cli install
-```
-
-Or bootstrap the native binary directly with a single command:
-
-**Windows (PowerShell):**
-```powershell
-irm https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.ps1 | iex
-browser4-cli install
-```
-
-**Linux / macOS (bash):**
-```bash
-curl -fsSL https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.sh | bash
-browser4-cli install
-```
-
-### Install DeepSeek Harness (DSH)
-
-If you want to use Browser4 as a plugin inside [DeepSeek Harness](https://github.com/deepseek-ai) (DSH), check whether DSH is already installed:
-
-```sh
-dsh --version
-```
-
-If the command prints a version number, DSH is ready. If the command is not found, install it by OS:
-
-**macOS**
-
-Install Node.js 20 or later, then install DSH:
-
-```sh
-brew install node
-npm install -g @deepseek-ai/dsh
-```
-
-**Windows**
-
-Install Node.js LTS in PowerShell:
-
-```powershell
-winget install OpenJS.NodeJS.LTS
-```
-
-Reopen PowerShell after installation, then install DSH:
-
-```powershell
-npm install -g @deepseek-ai/dsh
-```
-
-Run `dsh --version` again to confirm DSH works, then start it with `dsh web`.
 
 ## 💡 CLI Guide for Humans
 
