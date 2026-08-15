@@ -18,6 +18,7 @@
     - [如何批量处理页面](#如何批量处理页面)
     - [如何把 HTML 转成电子表格——零 Token](#如何把-html-转成电子表格零-token)
   - [📦 安装](#-安装)
+    - [安装 DeepSeek Harness（DSH）](#安装-deepseek-harnessdsh)
   - [💡 面向人的 CLI 指南](#-面向人的-cli-指南)
     - [快速上手](#快速上手)
     - [心智模型](#心智模型)
@@ -173,6 +174,41 @@ browser4-cli install
 curl -fsSL https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.sh | bash
 browser4-cli install
 ```
+
+### 安装 DeepSeek Harness（DSH）
+
+如果你想把 Browser4 作为插件在 DeepSeek Harness（DSH）中使用，先检查本地是否已经安装 DSH：
+
+```sh
+dsh --version
+```
+
+如果命令能够正常输出版本号，说明 DSH 已就绪，可直接进入下一步。如果提示找不到命令，请根据操作系统安装。
+
+**macOS**
+
+安装 Node.js 20 或更高版本，然后安装 DSH：
+
+```sh
+brew install node
+npm install -g @deepseek-ai/dsh
+```
+
+**Windows**
+
+在 PowerShell 中安装 Node.js LTS：
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+安装完成后重新打开 PowerShell，再安装 DSH：
+
+```powershell
+npm install -g @deepseek-ai/dsh
+```
+
+安装后再次运行 `dsh --version`，确认 DSH 可以正常使用，然后用 `dsh web` 启动。
 
 ## 💡 面向人的 CLI 指南
 

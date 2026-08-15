@@ -18,6 +18,7 @@ English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platon
     - [How to Process at Scale](#how-to-process-at-scale)
     - [How to Turn HTML into Spreadsheets — Zero Tokens](#how-to-turn-html-into-spreadsheets--zero-tokens)
   - [📦 Installation](#-installation)
+    - [Install DeepSeek Harness (DSH)](#install-deepseek-harness-dsh)
   - [💡 CLI Guide for Humans](#-cli-guide-for-humans)
     - [Quick start](#quick-start-1)
     - [Mental model](#mental-model)
@@ -154,6 +155,41 @@ browser4-cli install
 curl -fsSL https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.sh | bash
 browser4-cli install
 ```
+
+### Install DeepSeek Harness (DSH)
+
+If you want to use Browser4 as a plugin inside [DeepSeek Harness](https://github.com/deepseek-ai) (DSH), check whether DSH is already installed:
+
+```sh
+dsh --version
+```
+
+If the command prints a version number, DSH is ready. If the command is not found, install it by OS:
+
+**macOS**
+
+Install Node.js 20 or later, then install DSH:
+
+```sh
+brew install node
+npm install -g @deepseek-ai/dsh
+```
+
+**Windows**
+
+Install Node.js LTS in PowerShell:
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+Reopen PowerShell after installation, then install DSH:
+
+```powershell
+npm install -g @deepseek-ai/dsh
+```
+
+Run `dsh --version` again to confirm DSH works, then start it with `dsh web`.
 
 ## 💡 CLI Guide for Humans
 
