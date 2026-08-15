@@ -15,6 +15,7 @@ English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platon
     - [Install DeepSeek Harness (DSH)](#1-install-deepseek-harness-dsh)
     - [Install the browser4 plugin](#2-install-the-browser4-plugin)
     - [Start DSH](#3-start-dsh)
+    - [Use Browser4 in DSH](#4-use-browser4-in-dsh)
     - [Install browser4-cli (Optional)](#install-browser4-cli-optional)
   - [Quick Start](#quick-start)
   - [🧭 Tool Selection Guide](#-tool-selection-guide)
@@ -99,6 +100,26 @@ dsh plugin --profile web add github:platonai/dsh-browser4
 
 ```sh
 dsh web
+```
+
+### 4. Use Browser4 in DSH
+
+Once the plugin is installed, the bundle automatically loads the Skill Provider. The model loads the instructions via `skill({ name: "browser4-cli" })` or the `/browser4-cli` command — no extra setup needed.
+
+After that, just describe your task to the agent in natural language. The agent drives the browser through `browser4-cli` commands (via the Bash tool), for example:
+
+```
+Open https://browser4.io, find the installation guide,
+and save a full-page screenshot to the current directory.
+```
+
+Typical flow the agent performs under the hood:
+
+```bash
+browser4-cli open --headless https://browser4.io   # open a session (backend starts on first run, ~10s)
+browser4-cli snapshot -i --boxes                   # inspect the page and get element refs
+browser4-cli click e15                             # interact using refs
+browser4-cli screenshot --full-page --filename page.png
 ```
 
 ### Install browser4-cli (Optional)
