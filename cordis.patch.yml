@@ -1,0 +1,22 @@
+# dsh-browser4 bundle patch — registers the Browser4 skills provider.
+#
+# Applied after dsh-base's insert (and after dsh-web-app when installed in a
+# web profile). The row mounts the in-box @deepseek-ai/dsh-skill-local provider
+# pointed at this package's skills/ directory, so every session reads the
+# Browser4 skills from its merged catalog — no manual copy into ~/.agents/skills.
+#
+# The skills path is resolved from the profile directory (ctx.baseUrl) because
+# bundle layers are composed into the profile's entry list, and pnpm installs
+# this package under the profile's node_modules. Both the real package name and
+# the short "b4" alias key are listed so a pnpm alias install
+# (`dsh plugin --profile web add b4@github:platonai/dsh-browser4`) works too;
+# the absent candidate directory is skipped by skill-local.
+- insert:
+    - id: dsh-browser4
+      name: '@deepseek-ai/dsh-skill-local'
+      config:
+        providerName: browser4
+        includeDefaultRoots: false
+        customSkillDirs: !!js |-
+          ['dsh-browser4', 'b4'].map((pkg) => decodeURIComponent(new URL('node_modules/' + pkg + '/skills', ctx.baseUrl).pathname).replace(/^\/([A-Za-z]:)/, '$1'))
+        watch: false

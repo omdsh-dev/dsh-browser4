@@ -1,3 +1,10 @@
+---
+name: scent-miner
+title: "WebMiner (scent-miner) — Offline Page Clustering"
+description: "Converts downloaded HTML page folders into interactive reports and Excel spreadsheets via local ML clustering (SMILE/Spark) — zero LLM tokens. Use when you have HTML files and want structured insights without an LLM."
+tier: decision
+---
+
 # WebMiner — Convert Detail Web Pages into Interactive Views
 
 WebMiner groups similar web pages together and produces an interactive HTML

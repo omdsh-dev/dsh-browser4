@@ -1,0 +1,17 @@
+{
+  "name": "dsh-browser4",
+  "version": "4.13.3",
+  "description": "Browser4 skills bundle for DeepSeek Harness — AI-native browser automation (browser4-cli) for autonomous agents, intelligent extraction, and large-scale web automation. Registers the Browser4 skills (browser4-cli, browser4-experience, browser4-plugin, scent-miner) into the DSH skill registry.",
+  "files": [
+    "cordis.patch.yml",
+    "skills/",
+    "README.md",
+    "README.zh.md"
+  ],
+  "license": "Apache-2.0",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
