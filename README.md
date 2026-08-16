@@ -51,7 +51,7 @@ English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platon
 * 🧠 **ML-Powered Extraction** — Learn page structures and extract structured data without LLM token costs.
 * ⚡ **High-Performance Runtime** — Coroutine-safe architecture supporting 100k–200k complex page visits per machine per day.
 * 🧬 **Hybrid Intelligence** — Combine LLM, ML, X-SQL, and selectors for robust extraction and experience reuse.
-* 📦 **Enterprise-Scale Automation** — Swarm crawling, CDP-native control, batch jobs, stateful sessions, plugins, extensions, and more.
+* 📦 **Enterprise-Scale Automation** — Large-scale web access, CDP-native control, batch jobs, stateful sessions, plugins, extensions, and more.
 
 ## 📦 Installation
 
