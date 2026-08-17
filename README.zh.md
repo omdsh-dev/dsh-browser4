@@ -13,9 +13,8 @@
     - [✨ 核心能力](#-核心能力)
   - [📦 安装](#-安装)
     - [检查并安装 DeepSeek Harness（DSH）](#1-检查并安装-deepseek-harnessdsh)
-    - [安装 browser4 插件](#2-安装-browser4-插件)
-    - [启动 DSH](#3-启动-dsh)
-    - [在 DSH 中使用 Browser4](#4-在-dsh-中使用-browser4)
+    - [启动 DSH](#2-启动-dsh)
+    - [在 DSH 中使用 Browser4](#3-在-dsh-中使用-browser4)
     - [安装 browser4-cli（可选）](#安装-browser4-cli可选)
   - [快速开始](#快速开始)
   - [🧭 工具选择指南](#-工具选择指南)
@@ -59,6 +58,8 @@
 
 ## 📦 安装
 
+> 💡 **无需安装插件**：本插件不需要安装，仅需要在 dsh 中输入 `Read https://browser4.io/SKILL.md and install browser4-cli (if not installed) for browser automation` 即可。
+
 ### 1. 检查并安装 DeepSeek Harness（DSH）
 
 先检查本地是否已经安装 DSH：
@@ -94,21 +95,15 @@ npm install -g @deepseek-ai/dsh
 
 安装后再次运行 `dsh --version`，确认 DSH 可以正常使用。
 
-### 2. 安装 browser4 插件
-
-```sh
-dsh plugin --profile web add github:platonai/dsh-browser4
-```
-
-### 3. 启动 DSH
+### 2. 启动 DSH
 
 ```sh
 dsh web
 ```
 
-### 4. 在 DSH 中使用 Browser4
+### 3. 在 DSH 中使用 Browser4
 
-插件安装后，bundle 会自动加载 Skill Provider，模型可通过 `skill({ name: "browser4-cli" })` 或 `/browser4-cli` 命令加载使用说明，无需任何额外配置。
+启动 DSH 后，bundle 会自动加载 Skill Provider，模型可通过 `skill({ name: "browser4-cli" })` 或 `/browser4-cli` 命令加载使用说明，无需任何额外配置。
 
 之后只需用自然语言向智能体描述任务即可，智能体会通过 `browser4-cli` 命令（借助 Bash 工具）驱动浏览器完成操作，例如：
 

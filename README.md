@@ -13,9 +13,8 @@ English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platon
     - [✨ Key Capabilities](#-key-capabilities)
   - [📦 Installation](#-installation)
     - [Install DeepSeek Harness (DSH)](#1-install-deepseek-harness-dsh)
-    - [Install the browser4 plugin](#2-install-the-browser4-plugin)
-    - [Start DSH](#3-start-dsh)
-    - [Use Browser4 in DSH](#4-use-browser4-in-dsh)
+    - [Start DSH](#2-start-dsh)
+    - [Use Browser4 in DSH](#3-use-browser4-in-dsh)
     - [Install browser4-cli (Optional)](#install-browser4-cli-optional)
   - [Quick Start](#quick-start)
   - [🧭 Tool Selection Guide](#-tool-selection-guide)
@@ -55,6 +54,8 @@ English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platon
 
 ## 📦 Installation
 
+> 💡 **无需安装插件**：本插件不需要安装，仅需要在 dsh 中输入 `Read https://browser4.io/SKILL.md and install browser4-cli (if not installed) for browser automation` 即可。
+
 ### 1. Install DeepSeek Harness (DSH)
 
 First check whether DSH is already installed:
@@ -90,21 +91,15 @@ npm install -g @deepseek-ai/dsh
 
 Run `dsh --version` again to confirm DSH works.
 
-### 2. Install the browser4 plugin
-
-```sh
-dsh plugin --profile web add github:platonai/dsh-browser4
-```
-
-### 3. Start DSH
+### 2. Start DSH
 
 ```sh
 dsh web
 ```
 
-### 4. Use Browser4 in DSH
+### 3. Use Browser4 in DSH
 
-Once the plugin is installed, the bundle automatically loads the Skill Provider. The model loads the instructions via `skill({ name: "browser4-cli" })` or the `/browser4-cli` command — no extra setup needed.
+Once DSH starts, the bundle automatically loads the Skill Provider. The model loads the instructions via `skill({ name: "browser4-cli" })` or the `/browser4-cli` command — no extra setup needed.
 
 After that, just describe your task to the agent in natural language. The agent drives the browser through `browser4-cli` commands (via the Bash tool), for example:
 
