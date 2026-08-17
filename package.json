@@ -1,14 +1,43 @@
 {
   "name": "dsh-browser4",
-  "version": "4.13.3",
+  "version": "0.0.1",
   "description": "Browser4 skills bundle for DeepSeek Harness — AI-native browser automation (browser4-cli) for autonomous agents, intelligent extraction, and large-scale web automation. Registers the Browser4 skills (browser4-cli, browser4-experience, browser4-plugin, scent-miner) into the DSH skill registry.",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "bundle",
+    "skill",
+    "browser4",
+    "browser4-cli",
+    "browser automation",
+    "web automation",
+    "ai agent"
+  ],
+  "license": "Apache-2.0",
   "files": [
     "cordis.patch.yml",
+    "scripts/",
     "skills/",
     "README.md",
     "README.zh.md"
   ],
-  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/platonai/dsh-browser4.git"
+  },
+  "homepage": "https://github.com/platonai/dsh-browser4",
+  "bugs": {
+    "url": "https://github.com/platonai/dsh-browser4/issues"
+  },
+  "scripts": {
+    "install:browser4": "node scripts/install-browser4.mjs",
+    "prepare": "node scripts/install-browser4.mjs",
+    "postinstall": "node scripts/install-browser4.mjs"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

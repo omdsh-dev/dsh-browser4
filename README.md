@@ -2,6 +2,8 @@
 
 [![License: APACHE2](https://img.shields.io/badge/license-APACHE2-green?style=flat-square)](https://github.com/platonai/browser4/blob/main/LICENSE)
 
+**Project:** [github.com/platonai/Browser4](https://github.com/platonai/Browser4) · **Website:** [browser4.io](https://browser4.io/)
+
 ---
 
 English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platonai_galaxyeye/Browser4)
@@ -13,9 +15,11 @@ English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platon
     - [✨ Key Capabilities](#-key-capabilities)
   - [📦 Installation](#-installation)
     - [Install DeepSeek Harness (DSH)](#1-install-deepseek-harness-dsh)
-    - [Start DSH](#2-start-dsh)
-    - [Use Browser4 in DSH](#3-use-browser4-in-dsh)
+    - [Install the Browser4 plugin (recommended)](#2-install-the-browser4-plugin-recommended)
+    - [Start DSH](#3-start-dsh)
+    - [Use Browser4 in DSH](#4-use-browser4-in-dsh)
     - [Install browser4-cli (Optional)](#install-browser4-cli-optional)
+    - [Install-free usage (optional)](#install-free-usage-optional)
   - [Quick Start](#quick-start)
   - [🧭 Tool Selection Guide](#-tool-selection-guide)
     - [How to Interact with a Page](#how-to-interact-with-a-page)
@@ -54,8 +58,6 @@ English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platon
 
 ## 📦 Installation
 
-> 💡 **无需安装插件**：本插件不需要安装，仅需要在 dsh 中输入 `Read https://browser4.io/SKILL.md and install browser4-cli (if not installed) for browser automation` 即可。
-
 ### 1. Install DeepSeek Harness (DSH)
 
 First check whether DSH is already installed:
@@ -91,13 +93,45 @@ npm install -g @deepseek-ai/dsh
 
 Run `dsh --version` again to confirm DSH works.
 
-### 2. Start DSH
+### 2. Install the Browser4 plugin (recommended)
+
+Install `dsh-browser4` as a DSH plugin bundle — from the npm registry or straight from GitHub:
+
+```sh
+dsh plugin --profile web add dsh-browser4                  # npm registry
+dsh plugin --profile web add github:platonai/dsh-browser4  # GitHub
+```
+
+Installing the package runs its installer script (`scripts/install-browser4.mjs`), which:
+
+1. Installs `browser4-cli` following the [browser4-cli SKILL installation process](skills/browser4-cli/SKILL.md) (`npm install -g browser4-cli` → `browser4-cli install`, falling back to the platform bootstrap script when npm is unavailable).
+2. Unpacks the SKILL files with `browser4-cli skills unpack` into `~/.dsh/skills` and `~/.agents/skills` (honouring `$DSH_HOME` / `$DSH_AGENTS_HOME`), so every DSH profile and preset discovers the `browser4-cli`, `browser4-experience`, `browser4-plugin`, and `scent-miner` skills.
+
+The bundle also registers a skill-provider layer (`cordis.patch.yml`) that serves the same skills directly from the installed package's `skills/` directory.
+
+> **The unpacked skills are the version embedded in your local `browser4-cli` binary.** `browser4-cli skills unpack` reads the skill files compiled into the CLI itself, not the copies shipped in this npm package. This is intentional: the agent's instructions always match the exact command set, options, and behaviour of the CLI actually installed on the machine — no network fetch, no version drift. After upgrading `browser4-cli`, just run `browser4-cli skills unpack` again to refresh.
+
+A shorter alias works too: `dsh plugin --profile web add b4@github:platonai/dsh-browser4`.
+
+> **pnpm ≥ 10 blocks dependency build scripts by default.** If `add` fails with a build-permission error, copy the exact package key pnpm prints into the profile's `pnpm-workspace.yaml` (under `$DSH_HOME/profiles/web/`) and re-run the command:
+>
+> ```yaml
+> allowBuilds:
+>   dsh-browser4: true
+> ```
+
+Installing from a local checkout (`dsh plugin --profile web add ./dsh-browser4`) links the package without running lifecycle scripts — run the installer once manually afterwards:
+
+```sh
+node scripts/install-browser4.mjs
+```
+### 3. Start DSH
 
 ```sh
 dsh web
 ```
 
-### 3. Use Browser4 in DSH
+### 4. Use Browser4 in DSH
 
 Once DSH starts, the bundle automatically loads the Skill Provider. The model loads the instructions via `skill({ name: "browser4-cli" })` or the `/browser4-cli` command — no extra setup needed.
 
@@ -119,7 +153,7 @@ browser4-cli screenshot --full-page --filename page.png
 
 ### Install browser4-cli (Optional)
 
-DSH automatically installs Browser4 when needed, so installing browser4-cli manually is optional. Only do this if you want to use browser4-cli outside DSH, or your AI agent is asked to install it after reading the SKILL.
+The plugin installer already installs browser4-cli, so doing this manually is optional. Only do it if you want to use browser4-cli outside DSH, or your AI agent is asked to install it after reading the SKILL.
 
 Install browser4-cli globally using npm (requires Node.js):
 
@@ -141,6 +175,16 @@ browser4-cli install
 curl -fsSL https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.sh | bash
 browser4-cli install
 ```
+
+### Install-free usage (optional)
+
+No plugin install needed. Start DSH, then ask the agent to read the SKILL and install it:
+
+```
+Read https://browser4.io/SKILL.md and install browser4-cli (if not installed), then run `browser4-cli skills unpack` into ~/.dsh/skills and ~/.agents/skills, for browser automation
+```
+
+The agent follows the SKILL.md Installation section to install `browser4-cli` and unpacks the same skill files into the DSH skill roots — the same result as the plugin installer.
 
 ## Quick Start
 

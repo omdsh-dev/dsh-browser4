@@ -1,0 +1,4 @@
+# Workspace artifacts
+.probe/
+.tmp-scan/
+.workbuddy/
