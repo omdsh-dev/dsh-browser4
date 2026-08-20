@@ -2,8 +2,6 @@
 
 [![License: APACHE2](https://img.shields.io/badge/license-APACHE2-green?style=flat-square)](https://github.com/platonai/browser4/blob/main/LICENSE)
 
-**项目主页：**[github.com/platonai/Browser4](https://github.com/platonai/Browser4) · **官网：**[browser4.io](https://browser4.io/)
-
 ---
 
 [English](README.md) | 简体中文 | [中国镜像](https://gitee.com/platonai_galaxyeye/Browser4)
@@ -13,19 +11,13 @@
 - [🤖 Browser4](#-browser4)
   - [🌟 项目简介](#-项目简介)
     - [✨ 核心能力](#-核心能力)
-  - [📦 安装](#-安装)
-    - [检查并安装 DeepSeek Harness（DSH）](#1-检查并安装-deepseek-harnessdsh)
-    - [安装 Browser4 插件（推荐）](#2-安装-browser4-插件推荐)
-    - [启动 DSH](#3-启动-dsh)
-    - [在 DSH 中使用 Browser4](#4-在-dsh-中使用-browser4)
-    - [安装 browser4-cli（可选）](#安装-browser4-cli可选)
-    - [免安装使用（可选）](#免安装使用可选)
   - [快速开始](#快速开始)
   - [🧭 工具选择指南](#-工具选择指南)
     - [如何与页面交互](#如何与页面交互)
     - [如何提取数据](#如何提取数据)
     - [如何批量处理页面](#如何批量处理页面)
     - [如何把 HTML 转成电子表格——零 Token](#如何把-html-转成电子表格零-token)
+  - [📦 安装](#-安装)
   - [💡 面向人的 CLI 指南](#-面向人的-cli-指南)
     - [快速上手](#快速上手)
     - [心智模型](#心智模型)
@@ -58,137 +50,7 @@
 * 🧠 **ML 智能提取** — 通过机器学习理解网页结构，无需消耗 LLM Token，即可从复杂页面提取结构化数据。
 * ⚡ **高性能架构** — 协程安全设计，支持单机每天 10 万～20 万复杂网页访问。
 * 🧬 **智能数据管线** — 融合 LLM、ML、X-SQL 与选择器，实现复杂网页的数据提取、清洗与经验复用。
-* 📦 **企业级自动化平台** — 支持大规模网页访问、CDP 原生控制、批处理、有状态浏览、插件扩展等能力。
-
-## 📦 安装
-
-### 1. 检查并安装 DeepSeek Harness（DSH）
-
-先检查本地是否已经安装 DSH：
-
-```sh
-dsh --version
-```
-
-如果命令能够正常输出版本号，说明 DSH 已就绪，可直接进入下一步。如果提示找不到命令，请根据操作系统安装。
-
-**macOS**
-
-安装 Node.js 20 或更高版本，然后安装 DSH：
-
-```sh
-brew install node
-npm install -g @deepseek-ai/dsh
-```
-
-**Windows**
-
-在 PowerShell 中安装 Node.js LTS：
-
-```powershell
-winget install OpenJS.NodeJS.LTS
-```
-
-安装完成后重新打开 PowerShell，再安装 DSH：
-
-```powershell
-npm install -g @deepseek-ai/dsh
-```
-
-安装后再次运行 `dsh --version`，确认 DSH 可以正常使用。
-
-### 2. 安装 Browser4 插件（推荐）
-
-用一条命令把 `dsh-browser4` 作为 DSH 插件 bundle 安装——从 npm registry 或直接从 GitHub：
-
-```sh
-dsh plugin --profile web add dsh-browser4                  # npm registry
-dsh plugin --profile web add github:platonai/dsh-browser4  # GitHub
-```
-
-安装包时会执行包内的安装脚本（`scripts/install-browser4.mjs`），它只做两件事：
-
-1. 按照 [browser4-cli SKILL 的安装流程](skills/browser4-cli/SKILL.md) 安装 `browser4-cli`（`npm install -g browser4-cli` → `browser4-cli install`；npm 不可用时回退到 SKILL.md 中的平台引导脚本）。
-2. 用 `browser4-cli skills unpack` 把 SKILL 文件解压到 `~/.dsh/skills` 和 `~/.agents/skills`（尊重 `$DSH_HOME` / `$DSH_AGENTS_HOME`），让所有 DSH profile 与 preset 都能发现 `browser4-cli`、`browser4-experience`、`browser4-plugin`、`scent-miner` 四个技能。
-
-此外，bundle 的 `cordis.patch.yml` 会注册 skill-provider 层，直接从已安装包的 `skills/` 目录提供同样的技能。
-
-> **解压到用户目录的是你本机 `browser4-cli` 二进制内嵌的版本。** `browser4-cli skills unpack` 读取的是 CLI 自身编译进去的技能文件，而不是本 npm 包里附带的那份。这是有意为之：智能体的使用说明永远与你机器上实际安装的 CLI 的命令集、选项和行为完全一致——无网络请求、无版本漂移；升级 `browser4-cli` 后只需再跑一次 `browser4-cli skills unpack` 即可刷新。
-
-也支持更短的别名：`dsh plugin --profile web add b4@github:platonai/dsh-browser4`。
-
-> **pnpm ≥ 10 默认拦截依赖构建脚本。** 如果 `add` 因构建权限失败，把 pnpm 打印的包 key 原样复制到该 profile 的 `pnpm-workspace.yaml`（位于 `$DSH_HOME/profiles/web/`）并重新执行命令：
->
-> ```yaml
-> allowBuilds:
->   dsh-browser4: true
-> ```
-
-从本地 checkout 安装（`dsh plugin --profile web add ./dsh-browser4`）只是链接包，不会执行生命周期脚本——请随后手动运行一次安装器：
-
-```sh
-node scripts/install-browser4.mjs
-```
-### 3. 启动 DSH
-
-```sh
-dsh web
-```
-
-### 4. 在 DSH 中使用 Browser4
-
-启动 DSH 后，bundle 会自动加载 Skill Provider，模型可通过 `skill({ name: "browser4-cli" })` 或 `/browser4-cli` 命令加载使用说明，无需任何额外配置。
-
-之后只需用自然语言向智能体描述任务即可，智能体会通过 `browser4-cli` 命令（借助 Bash 工具）驱动浏览器完成操作，例如：
-
-```
-打开 https://browser4.io，找到安装指南，
-并把整页截图保存到当前目录。
-```
-
-智能体在背后执行的典型流程：
-
-```bash
-browser4-cli open --headless https://browser4.io   # 打开会话（首次运行后端启动约需 10 秒）
-browser4-cli snapshot -i --boxes                   # 检查页面并获取元素 ref
-browser4-cli click e15                             # 使用 ref 进行交互
-browser4-cli screenshot --full-page --filename page.png
-```
-
-### 安装 browser4-cli（可选）
-
-插件安装器已经帮你装好了 browser4-cli，因此手动安装是可选的。仅当你想在 DSH 之外单独使用 browser4-cli，或者 AI 智能体在阅读 SKILL 后被要求自行安装时才需要。
-
-通过 npm 全局安装 browser4-cli（需要 Node.js）：
-
-```shell
-npm install -g browser4-cli
-browser4-cli install
-```
-
-或者用单条命令直接引导安装原生二进制：
-
-**Windows（PowerShell）：**
-```powershell
-irm https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.ps1 | iex
-browser4-cli install
-```
-
-**Linux / macOS（bash）：**
-```bash
-curl -fsSL https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.sh | bash
-browser4-cli install
-```
-
-### 免安装使用（可选）
-
-不需要安装插件。启动 DSH 后，让智能体阅读 SKILL 并自行安装：
-
-```
-Read https://browser4.io/SKILL.md and install browser4-cli (if not installed), then run `browser4-cli skills unpack` into ~/.dsh/skills and ~/.agents/skills, for browser automation
-```
-
-智能体会按照 SKILL.md 的 Installation 章节安装 `browser4-cli`，并把同一套技能文件解压到 DSH 技能目录——效果与插件安装器一致。
+* 📦 **企业级自动化平台** — 支持大规模爬取、CDP 原生控制、批处理、有状态浏览、插件扩展等能力。
 
 ## 快速开始
 
@@ -197,10 +59,11 @@ Read https://browser4.io/SKILL.md and install browser4-cli (if not installed), t
 ```
 Read https://browser4.io/SKILL.md and install browser4-cli (if not installed) for browser automation to perform the following task:
 
-1. go to amazon.com
-2. search for pens to draw on whiteboards
-3. compare the first 4 ones
-4. write the result to a markdown file
+1. Open the browser in headed mode (`open --headed`) so the window is visible — this is a human-facing demo
+2. go to amazon.com
+3. search for pens to draw on whiteboards
+4. compare the first 4 ones
+5. write the result to a markdown file
 ```
 
 ## 🧭 工具选择指南
@@ -287,6 +150,29 @@ browser4-cli snapshot -i
 
 ---
 
+## 📦 安装
+
+手动安装是可选的，因为 AI 智能体在阅读 SKILL 后通常可以自行完成安装。
+
+通过 npm 全局安装 browser4-cli（需要 Node.js）：
+
+```shell
+npm install -g browser4-cli
+browser4-cli install
+```
+
+或者用单条命令直接引导安装原生二进制。脚本随后会自动安装 Browser4 后端（运行时包）——全新机器执行 `browser4-cli install`，已安装后端则执行 `browser4-cli upgrade` 升级到最新版（可用 `--skip-backend` 跳过此步骤）：
+
+**Windows（PowerShell）：**
+```powershell
+irm https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.ps1 | iex
+```
+
+**Linux / macOS（bash）：**
+```bash
+curl -fsSL https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.sh | bash
+```
+
 ## 💡 面向人的 CLI 指南
 
 `browser4-cli` 不只是智能体后端，它本身也是一个适合人类直接使用的浏览器自动化命令行工具。你可以用它驱动真实浏览器、检查页面状态、提取结构化数据、运行 X-SQL、编排 crawl / swarm 任务、管理服务端插件与 skills，也可以把长任务交给内建的 AI 能力处理。
@@ -318,7 +204,7 @@ browser4-cli htmlsnapshot get text "#main-content"
 browser4-cli htmlsnapshot query --sql @query.sql
 
 # 保存输出
-browser4-cli screenshot --full-page --filename page.png
+browser4-cli screenshot --full-page --filename page.jpg
 browser4-cli pdf --filename page.pdf
 ```
 

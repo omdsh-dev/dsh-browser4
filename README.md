@@ -2,8 +2,6 @@
 
 [![License: APACHE2](https://img.shields.io/badge/license-APACHE2-green?style=flat-square)](https://github.com/platonai/browser4/blob/main/LICENSE)
 
-**Project:** [github.com/platonai/Browser4](https://github.com/platonai/Browser4) · **Website:** [browser4.io](https://browser4.io/)
-
 ---
 
 English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platonai_galaxyeye/Browser4)
@@ -13,19 +11,13 @@ English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platon
 - [🤖 Browser4](#-browser4)
   - [🌟 Introduction](#-introduction)
     - [✨ Key Capabilities](#-key-capabilities)
-  - [📦 Installation](#-installation)
-    - [Install DeepSeek Harness (DSH)](#1-install-deepseek-harness-dsh)
-    - [Install the Browser4 plugin (recommended)](#2-install-the-browser4-plugin-recommended)
-    - [Start DSH](#3-start-dsh)
-    - [Use Browser4 in DSH](#4-use-browser4-in-dsh)
-    - [Install browser4-cli (Optional)](#install-browser4-cli-optional)
-    - [Install-free usage (optional)](#install-free-usage-optional)
   - [Quick Start](#quick-start)
   - [🧭 Tool Selection Guide](#-tool-selection-guide)
     - [How to Interact with a Page](#how-to-interact-with-a-page)
     - [How to Extract Data](#how-to-extract-data)
     - [How to Process at Scale](#how-to-process-at-scale)
     - [How to Turn HTML into Spreadsheets — Zero Tokens](#how-to-turn-html-into-spreadsheets--zero-tokens)
+  - [📦 Installation](#-installation)
   - [💡 CLI Guide for Humans](#-cli-guide-for-humans)
     - [Quick start](#quick-start-1)
     - [Mental model](#mental-model)
@@ -54,137 +46,7 @@ English | [简体中文](README.zh.md) | [中国镜像](https://gitee.com/platon
 * 🧠 **ML-Powered Extraction** — Learn page structures and extract structured data without LLM token costs.
 * ⚡ **High-Performance Runtime** — Coroutine-safe architecture supporting 100k–200k complex page visits per machine per day.
 * 🧬 **Hybrid Intelligence** — Combine LLM, ML, X-SQL, and selectors for robust extraction and experience reuse.
-* 📦 **Enterprise-Scale Automation** — Large-scale web access, CDP-native control, batch jobs, stateful sessions, plugins, extensions, and more.
-
-## 📦 Installation
-
-### 1. Install DeepSeek Harness (DSH)
-
-First check whether DSH is already installed:
-
-```sh
-dsh --version
-```
-
-If the command prints a version number, DSH is ready — go to the next step. If the command is not found, install it by OS:
-
-**macOS**
-
-Install Node.js 20 or later, then install DSH:
-
-```sh
-brew install node
-npm install -g @deepseek-ai/dsh
-```
-
-**Windows**
-
-Install Node.js LTS in PowerShell:
-
-```powershell
-winget install OpenJS.NodeJS.LTS
-```
-
-Reopen PowerShell after installation, then install DSH:
-
-```powershell
-npm install -g @deepseek-ai/dsh
-```
-
-Run `dsh --version` again to confirm DSH works.
-
-### 2. Install the Browser4 plugin (recommended)
-
-Install `dsh-browser4` as a DSH plugin bundle — from the npm registry or straight from GitHub:
-
-```sh
-dsh plugin --profile web add dsh-browser4                  # npm registry
-dsh plugin --profile web add github:platonai/dsh-browser4  # GitHub
-```
-
-Installing the package runs its installer script (`scripts/install-browser4.mjs`), which:
-
-1. Installs `browser4-cli` following the [browser4-cli SKILL installation process](skills/browser4-cli/SKILL.md) (`npm install -g browser4-cli` → `browser4-cli install`, falling back to the platform bootstrap script when npm is unavailable).
-2. Unpacks the SKILL files with `browser4-cli skills unpack` into `~/.dsh/skills` and `~/.agents/skills` (honouring `$DSH_HOME` / `$DSH_AGENTS_HOME`), so every DSH profile and preset discovers the `browser4-cli`, `browser4-experience`, `browser4-plugin`, and `scent-miner` skills.
-
-The bundle also registers a skill-provider layer (`cordis.patch.yml`) that serves the same skills directly from the installed package's `skills/` directory.
-
-> **The unpacked skills are the version embedded in your local `browser4-cli` binary.** `browser4-cli skills unpack` reads the skill files compiled into the CLI itself, not the copies shipped in this npm package. This is intentional: the agent's instructions always match the exact command set, options, and behaviour of the CLI actually installed on the machine — no network fetch, no version drift. After upgrading `browser4-cli`, just run `browser4-cli skills unpack` again to refresh.
-
-A shorter alias works too: `dsh plugin --profile web add b4@github:platonai/dsh-browser4`.
-
-> **pnpm ≥ 10 blocks dependency build scripts by default.** If `add` fails with a build-permission error, copy the exact package key pnpm prints into the profile's `pnpm-workspace.yaml` (under `$DSH_HOME/profiles/web/`) and re-run the command:
->
-> ```yaml
-> allowBuilds:
->   dsh-browser4: true
-> ```
-
-Installing from a local checkout (`dsh plugin --profile web add ./dsh-browser4`) links the package without running lifecycle scripts — run the installer once manually afterwards:
-
-```sh
-node scripts/install-browser4.mjs
-```
-### 3. Start DSH
-
-```sh
-dsh web
-```
-
-### 4. Use Browser4 in DSH
-
-Once DSH starts, the bundle automatically loads the Skill Provider. The model loads the instructions via `skill({ name: "browser4-cli" })` or the `/browser4-cli` command — no extra setup needed.
-
-After that, just describe your task to the agent in natural language. The agent drives the browser through `browser4-cli` commands (via the Bash tool), for example:
-
-```
-Open https://browser4.io, find the installation guide,
-and save a full-page screenshot to the current directory.
-```
-
-Typical flow the agent performs under the hood:
-
-```bash
-browser4-cli open --headless https://browser4.io   # open a session (backend starts on first run, ~10s)
-browser4-cli snapshot -i --boxes                   # inspect the page and get element refs
-browser4-cli click e15                             # interact using refs
-browser4-cli screenshot --full-page --filename page.png
-```
-
-### Install browser4-cli (Optional)
-
-The plugin installer already installs browser4-cli, so doing this manually is optional. Only do it if you want to use browser4-cli outside DSH, or your AI agent is asked to install it after reading the SKILL.
-
-Install browser4-cli globally using npm (requires Node.js):
-
-```shell
-npm install -g browser4-cli
-browser4-cli install
-```
-
-Or bootstrap the native binary directly with a single command:
-
-**Windows (PowerShell):**
-```powershell
-irm https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.ps1 | iex
-browser4-cli install
-```
-
-**Linux / macOS (bash):**
-```bash
-curl -fsSL https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.sh | bash
-browser4-cli install
-```
-
-### Install-free usage (optional)
-
-No plugin install needed. Start DSH, then ask the agent to read the SKILL and install it:
-
-```
-Read https://browser4.io/SKILL.md and install browser4-cli (if not installed), then run `browser4-cli skills unpack` into ~/.dsh/skills and ~/.agents/skills, for browser automation
-```
-
-The agent follows the SKILL.md Installation section to install `browser4-cli` and unpacks the same skill files into the DSH skill roots — the same result as the plugin installer.
+* 📦 **Enterprise-Scale Automation** — Swarm crawling, CDP-native control, batch jobs, stateful sessions, plugins, extensions, and more.
 
 ## Quick Start
 
@@ -193,10 +55,11 @@ Paste the following instruction to your favorite AI agent like claude, codex, wo
 ```
 Read https://browser4.io/SKILL.md and install browser4-cli (if not installed) for browser automation to perform the following task:
 
-1. go to amazon.com
-2. search for pens to draw on whiteboards
-3. compare the first 4 ones
-4. write the result to a markdown file
+1. Open the browser in headed mode (`open --headed`) so the window is visible — this is a human-facing demo
+2. go to amazon.com
+3. search for pens to draw on whiteboards
+4. compare the first 4 ones
+5. write the result to a markdown file
 ```
 
 ## 🧭 Tool Selection Guide
@@ -210,7 +73,8 @@ Use `snapshot -i --boxes` to see clickable/typeable elements with refs like `e15
 Typical interactive flow:
 
 ```bash
-browser4-cli goto https://example.com/login
+# Humans usually want to see the browser — open it headed
+browser4-cli open --headed https://example.com/login
 browser4-cli snapshot -i --boxes
 browser4-cli fill e3 "user@example.com"
 browser4-cli fill e4 "secret" --submit
@@ -242,6 +106,7 @@ Need to process multiple pages?
 ├─ Need parallel execution (high throughput)? → swarm create → swarm query --seed-file ...
 ├─ Repeated monitoring (check every hour)? → loop -- eval "..." -i 3600
 └─ Just a few URLs in a shell script?
+   → browser4-cli open --headed "https://first-url"   # humans: open once, visibly
    → for url in ...; do browser4-cli goto "$url"; ... done
 ```
 
@@ -268,6 +133,32 @@ Have HTML files and want structured data — without tokens?
 
 ---
 
+## 📦 Installation
+
+Manually installation is optional since your AI agent is smart enough to install it after reading the SKILL.
+
+Install browser4-cli globally using npm (requires Node.js):
+
+```shell
+npm install -g browser4-cli
+browser4-cli install
+```
+
+Or bootstrap the native binary directly with a single command. The scripts
+also install the Browser4 backend (runtime bundle) afterwards — running
+`browser4-cli install` on a fresh machine, or `browser4-cli upgrade` when a
+backend is already present (pass `--skip-backend` to skip this step):
+
+**Windows (PowerShell):**
+```powershell
+irm https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.ps1 | iex
+```
+
+**Linux / macOS (bash):**
+```bash
+curl -fsSL https://browser4.oss-cn-beijing.aliyuncs.com/scripts/install-browser4-cli.sh | bash
+```
+
 ## 💡 CLI Guide for Humans
 
 `browser4-cli` is a human-usable browser automation shell, not just an agent backend. You can drive a real browser, inspect state, extract structured data, run X-SQL, orchestrate crawl/swarm jobs, manage server plugins and skills, and hand long-running work to built-in AI features.
@@ -277,10 +168,8 @@ If you want the embedded agent-facing instructions, see [skills/browser4-cli/SKI
 ### Quick start
 
 ```bash
-# Open a browser session (headless by default; add --headed to see the window)
-browser4-cli open https://browser4.io
-
-# Or explicitly open a visible browser:
+# Open a visible browser session (humans usually want to see the window;
+# agents should prefer the default headless mode — see SKILL.md)
 browser4-cli open --headed https://browser4.io
 
 # Inspect the page and get element refs
@@ -299,7 +188,7 @@ browser4-cli htmlsnapshot get text "#main-content"
 browser4-cli htmlsnapshot query --sql @query.sql
 
 # Save output
-browser4-cli screenshot --full-page --filename page.png
+browser4-cli screenshot --full-page --filename page.jpg
 browser4-cli pdf --filename page.pdf
 ```
 

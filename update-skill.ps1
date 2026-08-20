@@ -25,17 +25,22 @@
 .PARAMETER DryRun
     只报告最新标签与将要覆盖的内容，不实际写入任何文件。
 
+.PARAMETER Push
+    同步后自动提交，并推送到当前 git 仓库配置的全部 remote（platonai / omdsh / origin 等）。
+
 .EXAMPLE
     .\update-skill.ps1 -DryRun          # 查看最新标签与同步计划
     .\update-skill.ps1                  # 用最新标签覆盖本地
     .\update-skill.ps1 -Tag v4.13.2     # 指定版本覆盖本地
+    .\update-skill.ps1 -Push            # 同步后自动提交并推送到所有上游仓
 #>
 
 [CmdletBinding()]
 param(
     [string]$RepoUrl = 'https://github.com/platonai/Browser4.git',
     [string]$Tag = '',
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$Push
 )
 
 $ErrorActionPreference = 'Stop'
@@ -122,6 +127,40 @@ try {
     Write-Host "    + 已写入 $versionFile" -ForegroundColor Green
 
     Write-Host "==> 完成：$Tag 已同步覆盖本地（$updated 项）。" -ForegroundColor Green
+
+    # ---------- 6. 可选：自动提交并推送到所有上游仓 ----------
+    if ($Push) {
+        Write-Host '==> 自动提交并推送到所有上游仓 ...' -ForegroundColor Cyan
+        $commitMsg = "Sync Browser4 SKILL to upstream $Tag"
+        $addOut = & git add -A 2>&1
+        if ($LASTEXITCODE -ne 0) { throw "git add 失败：$($addOut -join ' ')" }
+
+        $staged = & git status --porcelain
+        if (-not $staged) {
+            Write-Host '==> 无任何文件变更，跳过提交。' -ForegroundColor Yellow
+        }
+        else {
+            $commitOut = & git commit -m $commitMsg 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "git commit 失败：$($commitOut -join ' ')" }
+            Write-Host "    + 已提交：$commitMsg" -ForegroundColor Green
+        }
+
+        $branch = (& git rev-parse --abbrev-ref HEAD).Trim()
+        $remotes = (& git remote).Trim()
+        if (-not $remotes) {
+            Write-Warning '当前 git 仓库没有配置任何 remote，跳过推送。'
+            return
+        }
+        foreach ($remote in $remotes) {
+            $pushOut = & git push $remote $branch 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "推送 $remote 失败：$($pushOut -join ' ')"
+            }
+            else {
+                Write-Host "    + 已推送 $remote/$branch" -ForegroundColor Green
+            }
+        }
+    }
 }
 finally {
     if (Test-Path $tmpDir) {

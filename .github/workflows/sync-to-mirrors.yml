@@ -1,0 +1,35 @@
+name: Sync Browser4 SKILL to mirrors
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.repository == 'platonai/dsh-browser4'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mirror repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN || github.token }}
+
+      - name: Configure mirror remotes
+        shell: pwsh
+        run: |
+          git remote add omdsh https://github.com/omdsh-dev/dsh-browser4.git
+          git remote add dsh-external https://github.com/dsh-external/dsh-browser4.git
+
+      - name: Sync and push to all mirrors
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          & ./update-skill.ps1 -Push
+          if ($LASTEXITCODE -ne 0) { throw "update-skill.ps1 failed" }
