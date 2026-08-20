@@ -20,10 +20,12 @@ jobs:
           token: ${{ secrets.SYNC_TOKEN || github.token }}
 
       - name: Configure mirror remotes
-        shell: pwsh
+        shell: bash
         run: |
-          git remote add omdsh https://github.com/omdsh-dev/dsh-browser4.git
-          git remote add dsh-external https://github.com/dsh-external/dsh-browser4.git
+          set -e
+          TOKEN="${{ secrets.SYNC_TOKEN || github.token }}"
+          git remote add omdsh "https://x-access-token:${TOKEN}@github.com/omdsh-dev/dsh-browser4.git"
+          git remote add dsh-external "https://x-access-token:${TOKEN}@github.com/dsh-external/dsh-browser4.git"
 
       - name: Sync and push to all mirrors
         shell: pwsh
