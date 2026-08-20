@@ -58,6 +58,7 @@ if (-not (Test-Path (Join-Path $ProjectRoot 'skills'))) {
 $SyncItems = @('skills', 'README.md', 'README.zh.md')
 
 # ---------- 1. 解析目标标签 ----------
+$tagWasAutoResolved = $false
 if ([string]::IsNullOrWhiteSpace($Tag)) {
     Write-Host '==> 查询上游最新版本标签 ...' -ForegroundColor Cyan
     $tagLines = & git ls-remote --tags $RepoUrl 2>&1
@@ -70,11 +71,38 @@ if ([string]::IsNullOrWhiteSpace($Tag)) {
         Select-Object -First 1
     if (-not $latest) { throw '未在上游找到任何 vX.Y.Z 版本标签。' }
     $Tag = $latest
+    $tagWasAutoResolved = $true
 }
 if ($Tag -notmatch '^v\d+\.\d+\.\d+$') {
     throw "标签格式不支持：'$Tag'（期望如 v4.13.3）。"
 }
 Write-Host "==> 目标标签：$Tag" -ForegroundColor Green
+
+# 自动解析标签且本地已记录相同标签时，内容必然一致，直接跳过，
+# 避免 CI 定时任务因 synced_at 时间戳变化产生无意义提交。
+if ($tagWasAutoResolved -and -not $DryRun) {
+    $versionFile = Join-Path $ProjectRoot 'SKILL_VERSION.txt'
+    if (Test-Path $versionFile) {
+        $currentTag = (Get-Content $versionFile | Where-Object { $_ -match '^tag:\s*(.+)$' } | ForEach-Object { $matches[1] })
+        if ($currentTag -eq $Tag) {
+            Write-Host "==> 本地已是最新（$Tag），跳过同步。" -ForegroundColor Yellow
+            exit 0
+        }
+    }
+}
+
+# 自动模式（未指定 -Tag）且本地已记录相同标签时，内容必然一致，直接跳过，
+# 避免 CI 定时任务因 synced_at 时间戳变化产生无意义提交。
+if ([string]::IsNullOrWhiteSpace($Tag) -eq $false -and $DryRun -eq $false) {
+    $versionFile = Join-Path $ProjectRoot 'SKILL_VERSION.txt'
+    if (Test-Path $versionFile) {
+        $currentTag = (Get-Content $versionFile | Where-Object { $_ -match '^tag:\s*(.+)$' } | ForEach-Object { $matches[1] })
+        if ($currentTag -eq $Tag) {
+            Write-Host "==> 本地已是最新（$Tag），跳过同步。" -ForegroundColor Yellow
+            exit 0
+        }
+    }
+}
 
 # ---------- 2. 打印同步计划（DryRun 到此为止） ----------
 Write-Host '==> 同步计划（覆盖本地）：' -ForegroundColor Cyan
