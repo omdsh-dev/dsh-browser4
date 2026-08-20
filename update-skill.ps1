@@ -89,7 +89,7 @@ if ($DryRun) {
 }
 
 # ---------- 3. sparse 浅克隆目标标签 ----------
-$tmpDir = Join-Path $env:TEMP ("b4-skill-update-" + [guid]::NewGuid().ToString('N'))
+$tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ("b4-skill-update-" + [guid]::NewGuid().ToString('N'))
 Write-Host "==> sparse 浅克隆 $Tag 到临时目录 ..." -ForegroundColor Cyan
 try {
     # --filter=blob:none 按需拉取文件内容；--sparse 只检出根级文件，
