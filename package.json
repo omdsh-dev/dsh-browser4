@@ -12,6 +12,9 @@
     "browser4-cli",
     "browser automation",
     "web automation",
+    "web mining",
+    "web scraping",
+    "web crawling",
     "ai agent"
   ],
   "license": "Apache-2.0",

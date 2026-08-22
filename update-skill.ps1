@@ -1,20 +1,22 @@
 <#
 .SYNOPSIS
-    从 https://github.com/platonai/Browser4 的最新 release 标签拉取 SKILL 文件，直接覆盖本地版本。
+    从 https://github.com/platonai/Browser4 的最新 release 标签拉取 SKILL 文件，覆盖本地 skills/。
 
 .DESCRIPTION
-    本项目是 Browser4 的 SKILL 拷贝（skills/ + README.md + README.zh.md）。
+    本项目是 Browser4 的 SKILL 拷贝（skills/）。
     本脚本：
       1. 用 git ls-remote 获取上游所有版本标签，取最新（vX.Y.Z 语义化版本）。
       2. 用 sparse checkout 浅克隆该标签到临时目录，只检出 skills/ 与两个 README
          （git 走本机已配置的代理，openssl 后端，绕开 schannel SSL 问题；
           sparse 方式也避免上游 WPT 测试资源超长路径在 Windows 上 checkout 失败）。
-      3. 镜像覆盖本地：skills/ 整目录、README.md、README.zh.md（先删后拷，保证与上游完全一致，无残留旧文件）。
-      4. 在项目根写入 SKILL_VERSION.txt 记录来源标签与同步时间。
-      5. 清理临时目录。
+      3. 检查上游 README 与本地 README 是否有差异：有差异则提醒手动 merge（不自动覆盖）。
+      4. 镜像覆盖本地：仅 skills/ 整目录（先删后拷，保证与上游完全一致，无残留旧文件）。
+      5. 在项目根写入 SKILL_VERSION.txt 记录来源标签与同步时间。
+      6. 清理临时目录。
 
-    覆盖范围与本地 SKILL 拷贝保持一致：只同步 skills/ 与两个 README；
-    上游工程的源码、文档等其余文件不在同步范围内。
+    覆盖范围与本地 SKILL 拷贝保持一致：只同步 skills/。
+    README.md / README.zh.md 仅用于差异检测，不会自动覆盖，
+    以避免丢失本地 DSH 插件相关说明。
 
 .PARAMETER RepoUrl
     上游仓库地址，默认 https://github.com/platonai/Browser4.git
@@ -23,7 +25,7 @@
     指定要同步的标签（如 v4.13.3）。留空 = 自动取最新版本标签。
 
 .PARAMETER DryRun
-    只报告最新标签与将要覆盖的内容，不实际写入任何文件。
+    只报告最新标签、同步计划与 README 差异，不实际写入任何文件。
 
 .PARAMETER Push
     同步后自动提交，并推送到当前 git 仓库配置的全部 remote（platonai / omdsh / origin 等）。
@@ -45,6 +47,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = $PSScriptRoot
+$ReadmeItems = @('README.md', 'README.zh.md')
 
 # ---------- 0. 前置检查 ----------
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
@@ -55,7 +58,7 @@ if (-not (Test-Path (Join-Path $ProjectRoot 'skills'))) {
 }
 
 # 与上游同步的文件/目录清单（相对项目根）
-$SyncItems = @('skills', 'README.md', 'README.zh.md')
+$SyncItems = @('skills')
 
 # ---------- 1. 解析目标标签 ----------
 $tagWasAutoResolved = $false
@@ -78,42 +81,20 @@ if ($Tag -notmatch '^v\d+\.\d+\.\d+$') {
 }
 Write-Host "==> 目标标签：$Tag" -ForegroundColor Green
 
-# 自动解析标签且本地已记录相同标签时，内容必然一致，直接跳过，
-# 避免 CI 定时任务因 synced_at 时间戳变化产生无意义提交。
-if ($tagWasAutoResolved -and -not $DryRun) {
-    $versionFile = Join-Path $ProjectRoot 'SKILL_VERSION.txt'
-    if (Test-Path $versionFile) {
-        $currentTag = (Get-Content $versionFile | Where-Object { $_ -match '^tag:\s*(.+)$' } | ForEach-Object { $matches[1] })
-        if ($currentTag -eq $Tag) {
-            Write-Host "==> 本地已是最新（$Tag），跳过同步。" -ForegroundColor Yellow
-            exit 0
-        }
-    }
+# 本地版本记录（用于判断是否可跳过 skills 覆盖）
+$versionFile = Join-Path $ProjectRoot 'SKILL_VERSION.txt'
+$currentTag = ''
+if (Test-Path $versionFile) {
+    $currentTag = (Get-Content $versionFile | Where-Object { $_ -match '^tag:\s*(.+)$' } | ForEach-Object { $matches[1] })
 }
+$isSameTagAsLocal = ($currentTag -eq $Tag)
 
-# 自动模式（未指定 -Tag）且本地已记录相同标签时，内容必然一致，直接跳过，
-# 避免 CI 定时任务因 synced_at 时间戳变化产生无意义提交。
-if ([string]::IsNullOrWhiteSpace($Tag) -eq $false -and $DryRun -eq $false) {
-    $versionFile = Join-Path $ProjectRoot 'SKILL_VERSION.txt'
-    if (Test-Path $versionFile) {
-        $currentTag = (Get-Content $versionFile | Where-Object { $_ -match '^tag:\s*(.+)$' } | ForEach-Object { $matches[1] })
-        if ($currentTag -eq $Tag) {
-            Write-Host "==> 本地已是最新（$Tag），跳过同步。" -ForegroundColor Yellow
-            exit 0
-        }
-    }
-}
-
-# ---------- 2. 打印同步计划（DryRun 到此为止） ----------
+# ---------- 2. 打印同步计划 ----------
 Write-Host '==> 同步计划（覆盖本地）：' -ForegroundColor Cyan
 foreach ($item in $SyncItems) {
     $dst = Join-Path $ProjectRoot $item
     $cur = if (Test-Path $dst) { '存在（将被覆盖）' } else { '不存在（将新建）' }
     Write-Host "    $item  [$cur]"
-}
-if ($DryRun) {
-    Write-Host '==> DryRun 模式：未写入任何文件。' -ForegroundColor Yellow
-    exit 0
 }
 
 # ---------- 3. sparse 浅克隆目标标签 ----------
@@ -128,7 +109,44 @@ try {
     $sparseOut = & git -C $tmpDir sparse-checkout set --no-cone '/skills/*' '/README.md' '/README.zh.md' 2>&1
     if ($LASTEXITCODE -ne 0) { throw "sparse-checkout 失败：$($sparseOut -join ' ')" }
 
-    # ---------- 4. 镜像覆盖本地 ----------
+    # ---------- 4. README 差异检测（仅提醒，不覆盖） ----------
+    $readmeDiffs = @()
+    foreach ($readme in $ReadmeItems) {
+        $srcReadme = Join-Path $tmpDir $readme
+        $dstReadme = Join-Path $ProjectRoot $readme
+
+        if (-not (Test-Path $srcReadme)) { continue }
+        if (-not (Test-Path $dstReadme)) {
+            $readmeDiffs += $readme
+            continue
+        }
+
+        $srcHash = (Get-FileHash -Path $srcReadme -Algorithm SHA256).Hash
+        $dstHash = (Get-FileHash -Path $dstReadme -Algorithm SHA256).Hash
+        if ($srcHash -ne $dstHash) {
+            $readmeDiffs += $readme
+        }
+    }
+
+    if ($readmeDiffs.Count -gt 0) {
+        Write-Warning "检测到上游 README 与本地存在差异：$($readmeDiffs -join ', ')"
+        Write-Warning '为避免覆盖本地 DSH 插件说明，本脚本不会自动拷贝 README。请手动 merge。'
+    }
+    else {
+        Write-Host '    + README 与上游一致，无需 merge。' -ForegroundColor Green
+    }
+
+    if ($DryRun) {
+        Write-Host '==> DryRun 模式：未写入任何文件。' -ForegroundColor Yellow
+        exit 0
+    }
+
+    if ($isSameTagAsLocal) {
+        Write-Host "==> 本地已是最新标签（$Tag），跳过 skills 覆盖与版本文件更新。" -ForegroundColor Yellow
+        exit 0
+    }
+
+    # ---------- 5. 镜像覆盖本地（仅 skills/） ----------
     $updated = 0
     foreach ($item in $SyncItems) {
         $src = Join-Path $tmpDir $item
@@ -145,8 +163,7 @@ try {
         $updated++
     }
 
-    # ---------- 5. 记录来源版本 ----------
-    $versionFile = Join-Path $ProjectRoot 'SKILL_VERSION.txt'
+    # ---------- 6. 记录来源版本 ----------
     @(
         "source: $RepoUrl",
         "tag: $Tag",
@@ -156,7 +173,7 @@ try {
 
     Write-Host "==> 完成：$Tag 已同步覆盖本地（$updated 项）。" -ForegroundColor Green
 
-    # ---------- 6. 可选：自动提交并推送到所有上游仓 ----------
+    # ---------- 7. 可选：自动提交并推送到所有上游仓 ----------
     if ($Push) {
         Write-Host '==> 自动提交并推送到所有上游仓 ...' -ForegroundColor Cyan
         $commitMsg = "Sync Browser4 SKILL to upstream $Tag"
