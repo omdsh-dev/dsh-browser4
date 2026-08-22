@@ -6,17 +6,14 @@
     本项目是 Browser4 的 SKILL 拷贝（skills/）。
     本脚本：
       1. 用 git ls-remote 获取上游所有版本标签，取最新（vX.Y.Z 语义化版本）。
-      2. 用 sparse checkout 浅克隆该标签到临时目录，只检出 skills/ 与两个 README
+      2. 用 sparse checkout 浅克隆该标签到临时目录，只检出 skills/
          （git 走本机已配置的代理，openssl 后端，绕开 schannel SSL 问题；
           sparse 方式也避免上游 WPT 测试资源超长路径在 Windows 上 checkout 失败）。
-      3. 检查上游 README 与本地 README 是否有差异：有差异则提醒手动 merge（不自动覆盖）。
-      4. 镜像覆盖本地：仅 skills/ 整目录（先删后拷，保证与上游完全一致，无残留旧文件）。
-      5. 在项目根写入 SKILL_VERSION.txt 记录来源标签与同步时间。
-      6. 清理临时目录。
+      3. 镜像覆盖本地：仅 skills/ 整目录（先删后拷，保证与上游完全一致，无残留旧文件）。
+      4. 在项目根写入 SKILL_VERSION.txt 记录来源标签与同步时间。
+      5. 清理临时目录。
 
-    覆盖范围与本地 SKILL 拷贝保持一致：只同步 skills/。
-    README.md / README.zh.md 仅用于差异检测，不会自动覆盖，
-    以避免丢失本地 DSH 插件相关说明。
+    覆盖范围与本地 SKILL 拷贝保持一致：只同步 skills/，不处理 README。
 
 .PARAMETER RepoUrl
     上游仓库地址，默认 https://github.com/platonai/Browser4.git
@@ -25,7 +22,7 @@
     指定要同步的标签（如 v4.13.3）。留空 = 自动取最新版本标签。
 
 .PARAMETER DryRun
-    只报告最新标签、同步计划与 README 差异，不实际写入任何文件。
+    只报告最新标签与同步计划，不实际写入任何文件。
 
 .PARAMETER Push
     同步后自动提交，并推送到当前 git 仓库配置的全部 remote（platonai / omdsh / origin 等）。
@@ -47,7 +44,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = $PSScriptRoot
-$ReadmeItems = @('README.md', 'README.zh.md')
 
 # ---------- 0. 前置检查 ----------
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
@@ -102,39 +98,12 @@ $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ("b4-skill-update-" + [gui
 Write-Host "==> sparse 浅克隆 $Tag 到临时目录 ..." -ForegroundColor Cyan
 try {
     # --filter=blob:none 按需拉取文件内容；--sparse 只检出根级文件，
-    # 随后用 --no-cone 精确限定检出 skills/ 与两个 README，避开上游超长路径资源。
+    # 随后用 --no-cone 精确限定检出 skills/，避开上游超长路径资源。
     $cloneOut = & git clone --depth 1 --single-branch --branch $Tag --filter=blob:none --sparse $RepoUrl $tmpDir 2>&1
     if ($LASTEXITCODE -ne 0) { throw "git clone 失败：$($cloneOut -join ' ')" }
 
-    $sparseOut = & git -C $tmpDir sparse-checkout set --no-cone '/skills/*' '/README.md' '/README.zh.md' 2>&1
+    $sparseOut = & git -C $tmpDir sparse-checkout set --no-cone '/skills/*' 2>&1
     if ($LASTEXITCODE -ne 0) { throw "sparse-checkout 失败：$($sparseOut -join ' ')" }
-
-    # ---------- 4. README 差异检测（仅提醒，不覆盖） ----------
-    $readmeDiffs = @()
-    foreach ($readme in $ReadmeItems) {
-        $srcReadme = Join-Path $tmpDir $readme
-        $dstReadme = Join-Path $ProjectRoot $readme
-
-        if (-not (Test-Path $srcReadme)) { continue }
-        if (-not (Test-Path $dstReadme)) {
-            $readmeDiffs += $readme
-            continue
-        }
-
-        $srcHash = (Get-FileHash -Path $srcReadme -Algorithm SHA256).Hash
-        $dstHash = (Get-FileHash -Path $dstReadme -Algorithm SHA256).Hash
-        if ($srcHash -ne $dstHash) {
-            $readmeDiffs += $readme
-        }
-    }
-
-    if ($readmeDiffs.Count -gt 0) {
-        Write-Warning "检测到上游 README 与本地存在差异：$($readmeDiffs -join ', ')"
-        Write-Warning '为避免覆盖本地 DSH 插件说明，本脚本不会自动拷贝 README。请手动 merge。'
-    }
-    else {
-        Write-Host '    + README 与上游一致，无需 merge。' -ForegroundColor Green
-    }
 
     if ($DryRun) {
         Write-Host '==> DryRun 模式：未写入任何文件。' -ForegroundColor Yellow
@@ -146,7 +115,7 @@ try {
         exit 0
     }
 
-    # ---------- 5. 镜像覆盖本地（仅 skills/） ----------
+    # ---------- 4. 镜像覆盖本地（仅 skills/） ----------
     $updated = 0
     foreach ($item in $SyncItems) {
         $src = Join-Path $tmpDir $item
@@ -163,7 +132,7 @@ try {
         $updated++
     }
 
-    # ---------- 6. 记录来源版本 ----------
+    # ---------- 5. 记录来源版本 ----------
     @(
         "source: $RepoUrl",
         "tag: $Tag",
@@ -173,7 +142,7 @@ try {
 
     Write-Host "==> 完成：$Tag 已同步覆盖本地（$updated 项）。" -ForegroundColor Green
 
-    # ---------- 7. 可选：自动提交并推送到所有上游仓 ----------
+    # ---------- 6. 可选：自动提交并推送到所有上游仓 ----------
     if ($Push) {
         Write-Host '==> 自动提交并推送到所有上游仓 ...' -ForegroundColor Cyan
         $commitMsg = "Sync Browser4 SKILL to upstream $Tag"
