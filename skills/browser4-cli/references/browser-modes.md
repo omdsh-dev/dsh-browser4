@@ -158,6 +158,72 @@ instead of Chrome directly. Therefore:
 - Browser4 passes plain `--headless` (never `--headless=new`), forces
   `--disable-blink-features=AutomationControlled`, and leaves user-agent rotation
   off by default because rotation itself is detectable.
+- **The `HeadlessChrome` token is replaced at launch, in every display mode.** A
+  CDP-driven headless Chrome advertises `HeadlessChrome/<version>` by default; that
+  single token fails SannySoft `HEADCHR_UA`, Incolumitas `intoli.userAgent`, BrowserScan's
+  aggregate "Robot" badge and deviceandbrowserinfo's `hasBotUserAgent`, and it contradicts
+  the `Sec-CH-UA*` client hints the same browser sends. Browser4 therefore resolves the
+  installed Chrome's major version and passes an explicit `--user-agent`:
+
+  | Display mode | `navigator.userAgent` |
+  |---|---|
+  | `--headless` (default) | `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36` |
+  | `--headed` | identical — a current desktop Chrome reports the same reduced form natively |
+  | `--supervised` | the same as whichever of the two the supervisor actually starts |
+
+  The platform prefix follows the host (`Macintosh; Intel Mac OS X 10_15_7` on macOS,
+  `X11; Linux x86_64` elsewhere) and the version is Chrome's reduced form
+  (`<major>.0.0.0`). A launch-time `--user-agent` is used deliberately: it is the only
+  mechanism that reaches every JavaScript scope of a session — page, iframes,
+  dedicated/shared/service workers — while leaving the client hints intact.
+
+  Tune it with `browser.launch.user.agent` (an explicit string; a `Headless` token in it is
+  repaired rather than trusted) or disable the replacement entirely with
+  `browser.launch.user.agent.stealth=false`. When the Chrome major version cannot be
+  determined the driver logs a warning and leaves Chrome's default user agent in place —
+  expect the `HeadlessChrome` token in that case, and set `browser.launch.user.agent` to
+  fix it.
+- `navigator.deviceMemory` and `navigator.maxTouchPoints` are **Chrome's own readings of the
+  host**, not Browser4 overrides — verify before reporting them as defects. Chrome derives
+  `deviceMemory` from the host RAM by rounding down to a power of two, and recent Chrome
+  builds no longer clamp it at 8, so a 32 GB host legitimately reports `32` (SannySoft's
+  `CHR_MEMORY` check predates that change). `maxTouchPoints` reflects the host's touch
+  digitizer and can be non-zero while `'ontouchstart' in window` stays false and
+  `(pointer: fine)` matches — that is what a desktop Chrome with a touch-capable display
+  reports, and `(any-pointer: coarse)` is true in that case. Compare against a plain
+  `chrome --headless` reading on the same host before filing either as a driver bug.
+- `console` (list console messages) reads them from the DevTools protocol, so it does **not**
+  patch the page: `console.log` stays the native function and no driver-owned global appears on
+  `window`. Capture starts with the first `console` call of a session, so messages logged before it
+  are not listed — the same boundary the page-side buffer had. Enabling the CDP console domain is
+  the same family of side effect that made the base library stop sending `Runtime.enable` by
+  default, so it was measured rather than assumed: on Chrome 153.0.8010.52 the getter,
+  inherited-getter and prototype-Proxy probes on a logged object stay silent with the domain off
+  and on, while the page-side patch fails the same page's `String(console.log)` check.
+  `browser.console.capture=false` still opts out of the protocol entirely and takes that
+  page-visible patch instead.
+- Where the transport cannot enable the CDP console domain (an extension relay), the driver falls
+  back to the historical page-side buffer, which does replace `console.*` while it is active. The
+  fallback is decided once per driver and the warning names the underlying error, so it is neither
+  retried nor reported twice. A relay that accepts the command but never delivers console events
+  cannot be told apart from a page that logs nothing: `console` then prints an empty list with no
+  error, so treat an unexpectedly empty console on a relayed session as "capture unavailable",
+  not as "the page is quiet".
+- Pointer coordinates are humanised the same way the interaction delays are: the pointer move
+  that precedes a click lands within ±2 px of the element's center (clamped to the element box),
+  so repeated clicks on the same element do not hit the identical pixel. Explicit coordinates
+  passed to `mousemove` are **not** jittered — that command means "put the pointer exactly here".
+  A trusted click presses at that same hovered point instead of the element's center: Chrome moves
+  the pointer to the pressed coordinates before `mousedown`, so a press at the center would emit a
+  second `mousemove` back to the exact center and repeat the same pixel on every click. The hit
+  test is repeated at the pressed point, so the click still never lands on an overlay that covers
+  the element's edge.
+- Clicks are dispatched as **trusted** input (`Input.dispatchMouseEvent`, i.e. `event.isTrusted` is
+  true and the events carry their real coordinates) instead of synthetic DOM events. The driver
+  first verifies with a one-shot check that trusted input actually reaches the page on this
+  platform/session, and falls back to DOM dispatch when the element cannot be clicked at its own
+  coordinates (occluded by an overlay, `pointer-events: none`, inside a frame) — so the click always
+  lands on the requested element, never on whatever happens to be on top.
 - Sites with strong bot protection may still block automated sessions. When the
   goal is "act as the logged-in user", prefer the attach paths (axis 3) over
   launching another browser, and consider raising `--interact-level` (§4).
