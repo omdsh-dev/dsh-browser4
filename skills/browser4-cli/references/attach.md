@@ -114,7 +114,7 @@ Also accepts WebSocket URLs (`ws://localhost:9222/devtools/...`), bare ports (`-
 ### 3. Attach to a Remote Browser4 Server
 
 ```bash
-browser4-cli attach --endpoint http://browser4-server:8182 --cdp chrome
+browser4-cli attach --endpoint http://browser4-server:18182 --cdp chrome
 ```
 
 When `--endpoint` is used alone (without `--cdp`), it switches the CLI to the remote server for subsequent commands.
@@ -122,7 +122,7 @@ When `--endpoint` is used alone (without `--cdp`), it switches the CLI to the re
 ### 4. Named Sessions
 
 ```bash
-browser4-cli attach --cdp chrome -s debug-session
+browser4-cli -s debug-session attach --cdp chrome   # -s is global: before the command
 browser4-cli -s debug-session snapshot
 browser4-cli -s debug-session screenshot --filename state.png
 ```

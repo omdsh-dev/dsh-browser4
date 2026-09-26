@@ -119,6 +119,18 @@ Named sessions isolate browser state (cookies, localStorage, tabs) in a **dedica
 
 > **Concurrent runs — always pass `-s <name>`:** the unnamed DEFAULT session is a singleton shared by every invocation that omits `-s` (last writer wins), so parallel agents navigate each other's pages. Give each run its own `-s job-42`.
 
+> **`-s` is a GLOBAL flag — its position is part of the syntax.** Write it **before** the
+> command: `browser4-cli -s job-42 goto <url>`. Written after the command —
+> `goto <url> -s job-42` — it is not recognised as the session option and is rejected as an
+> unexpected positional argument. The long form `--session <name>` behaves identically (also
+> before the command). Because `-s` is reserved globally for `--session`, scope a snapshot with
+> the long form `--selector <css>`, never `-s <css>`.
+>
+> Other ways to pin the session: `BROWSER4_CLI_SESSION=job-42` (per-invocation env var, overridden
+> by `-s` / `--session`), `browser4-cli config set session job-42` (persisted default), or
+> `browser4-cli session-default <name>` (promote an existing named session to the default).
+> `browser4-cli list` shows every session and its current page URL.
+
 `list` shows a **"Next open"** column: **Reuse** (reconnects to the live session) or **Refresh** (stale/missing → fresh window). State lives in `~/.browser4`, falling back to `./.browser4-cli-state` when unwritable; override with `BROWSER4_CLI_STATE_DIR` / `BROWSER4_RUNTIME_DIR`.
 
 ### Configuration
@@ -134,7 +146,7 @@ Persistent CLI defaults live in `~/.browser4/config.json` (honours `BROWSER4_CLI
 
 ```bash
 browser4-cli config                       # list values + config file path
-browser4-cli config set server http://localhost:8182
+browser4-cli config set server http://localhost:18182
 browser4-cli config set timeout 45        # positive integer; 0 and unknown keys are rejected
 browser4-cli config delete session        # reset a key to its default
 ```
@@ -184,7 +196,7 @@ browser4-cli tab-close [index] | --guid <guid>   # no argument = current tab
 | `config` | Persistent CLI defaults (server, timeout, proxy, session) | Set default server URL, timeout, proxy, or session name | — |
 | `batch` | Run several commands in one invocation | Scripted multi-step flows, fewer round-trips | [quickstart.md](references/quickstart.md) |
 | `status`, `doctor`, `doctor log`, `doctor metrics` | Backend/process diagnostics and logs | Server not ready, startup failures, log/metric inspection | [quickstart.md](references/quickstart.md) |
-| `console`, `cdp`, `pdf`, `page-info`, `go-back`, `go-forward`, `keydown`, `keyup`, `mousedown`, `mouseup`, `mousewheel`, `snapshot list`, `snapshot clean`, `crawl status\|result\|cancel\|clear\|list`, `swarm submit\|status\|result\|list\|close`, `chat`, `session-default`, `delete-data`, `kill-all`, `stop`, `uninstall`, `plugin-*` | Remaining command families (not covered here) | Discover with `browser4-cli help` / `browser4-cli help <command>` | — |
+| `console`, `cdp`, `pdf`, `page-info`, `go-back`, `go-forward`, `keydown`, `keyup`, `mousedown`, `mouseup`, `mousewheel`, `snapshot list`, `snapshot clean`, `crawl status\|result\|cancel\|resume\|clear\|list`, `swarm submit\|status\|result\|list\|close`, `chat`, `session-default`, `delete-data`, `kill-all`, `stop`, `uninstall`, `plugin-*` | Remaining command families (not covered here) | Discover with `browser4-cli help` / `browser4-cli help <command>` | — |
 | `experience save`, `experience query`, `experience list`, `experience deep learn` | Progressive experience memory | Reuse selectors, extraction patterns and blocker awareness across sessions — see the sibling skill | [browser4-experience](../browser4-experience/SKILL.md) |
 
 ### Refreshing This Skill
@@ -278,6 +290,7 @@ Copy-paste template and expanded trees: [decision-trees.md](references/decision-
 - Single list page → `htmlsnapshot query` with `DOM_LOAD_AND_SELECT`.
 - Known URL list → `crawl --seed-file urls.txt --depth 0 --sql @query.sql` (add `--parallel 8`; each unit gets its own tab, and `--timeout 30m` when the 10-minute task budget is too short).
 - Crawl from a start URL → `crawl <url> --out-link-selector "…" --depth N`.
+- Interrupted crawl (backend restart, crash, `--timeout` cut it off, or you cancelled it) → `crawl list --status interrupted`, then `crawl resume <task-id>`: the task keeps its id, already-fetched URLs are **not** requested again, and `crawl result` returns the union of both runs. Add `--retry-failed` to re-fetch terminal failures. Automatic resume at startup is off by default (`crawl.autoResume`).
 - High throughput → `swarm create` → `swarm query --seed-file …`; `swarm query` returns rows, so stage the fetched corpus with `webdb export "url1,url2" <dir>` (URLs **comma-separated**).
 - Repeated monitoring → `loop -i 3600 -- eval "…"`.
 
