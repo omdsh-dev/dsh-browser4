@@ -148,6 +148,7 @@ Persistent CLI defaults live in `~/.browser4/config.json` (honours `BROWSER4_CLI
 browser4-cli config                       # list values + config file path
 browser4-cli config set server http://localhost:18182
 browser4-cli config set timeout 45        # positive integer; 0 and unknown keys are rejected
+browser4-cli config set extension_id <id> # id of a locally loaded ("Load unpacked") extension
 browser4-cli config delete session        # reset a key to its default
 ```
 
@@ -193,7 +194,7 @@ browser4-cli tab-close [index] | --guid <guid>   # no argument = current tab
 | `skill-list`, `skill-info`, `skill-install`, `skill-uninstall`, `skill-reload` | Backend skill management | Install/manage server-side skills | [skills.md](references/skills.md) |
 | `screenshot`, `scroll`, `wait`, `resize` | Visual capture & viewport control | Screenshots, viewport sizing, scroll control | — |
 | `tab-list`, `tab-new`, `tab-select`, `tab-close` | Tab management | Multi-tab workflows, session-scoped tab operations | [tabs.md](references/tabs.md) |
-| `config` | Persistent CLI defaults (server, timeout, proxy, session) | Set default server URL, timeout, proxy, or session name | — |
+| `config` | Persistent CLI defaults (server, timeout, proxy, session, extension_id) | Set default server URL, timeout, proxy, session name, or the id of a locally loaded extension | — |
 | `batch` | Run several commands in one invocation | Scripted multi-step flows, fewer round-trips | [quickstart.md](references/quickstart.md) |
 | `status`, `doctor`, `doctor log`, `doctor metrics` | Backend/process diagnostics and logs | Server not ready, startup failures, log/metric inspection | [quickstart.md](references/quickstart.md) |
 | `console`, `cdp`, `pdf`, `page-info`, `go-back`, `go-forward`, `keydown`, `keyup`, `mousedown`, `mouseup`, `mousewheel`, `snapshot list`, `snapshot clean`, `crawl status\|result\|cancel\|resume\|clear\|list`, `swarm submit\|status\|result\|list\|close`, `chat`, `session-default`, `delete-data`, `kill-all`, `stop`, `uninstall`, `plugin-*` | Remaining command families (not covered here) | Discover with `browser4-cli help` / `browser4-cli help <command>` | — |
@@ -216,7 +217,7 @@ unchanged files are skipped, so re-running is cheap. `install` / `upgrade` also 
 skills into `~/.agents/skills` so agents (e.g. Codex) load them automatically. Overrides:
 `BROWSER4_SKILLS_DIR`, `BROWSER4_AGENTS_SKILLS_DIR`.
 
-## 4. Choosing an Approach
+## 4. Decision Trees
 
 ### 4a. snapshot vs htmlsnapshot
 
@@ -321,7 +322,7 @@ Full reference: **[web-miner/SKILL.md](../browser4-web-miner/SKILL.md)**.
 
 > **`get` value contract:** a matched element returns its value — or `""` when the attribute/property is absent; `null` means the selector matched nothing; an unresolvable `eN` ref fails with an explicit error.
 
-## 6. Recipes & Deep Dives
+## 6. Quick Patterns & Deep Dives
 
 Copy-paste pairs for the common flows — form fill, `snapshot grep`, mouse/drag, dialog handling,
 verify-after-interaction, single-field and bulk extraction, PowerCSS, agent tasks:
@@ -392,7 +393,7 @@ Organized by task — follow the link that matches what you're trying to do:
 [shell-quoting.md](references/shell-quoting.md) — avoid shell-quoting breakage for complex JS/X-SQL on Windows / Git Bash
 
 **Developers:**
-[development.md](references/development.md) — build the CLI from source (Rust, Java 17+)
+[Build from Source](../../docs/build-from-source.md) — build the CLI and backend from source (Rust, Java 17+)
 
 ## Installation
 
