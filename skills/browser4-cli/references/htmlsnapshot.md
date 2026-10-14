@@ -24,19 +24,52 @@ The `htmlsnapshot` family operates on a **static HTML snapshot** — the raw HTM
 ## Commands
 
 ```bash
-browser4-cli htmlsnapshot                                # capture fresh static HTML snapshot + metadata
-browser4-cli htmlsnapshot get <field> [selector] [name] [--absolute] [--page N] [--page-size N] [--all]  # field = text|textcontent|html|attr; html paginated at 2K lines, text/textcontent not paginated
-browser4-cli htmlsnapshot query [url] --sql <query> [--format json|csv|table]  # X-SQL; current page = live DOM, other URLs = independent fetch (see Query below)
-browser4-cli htmlsnapshot summary                        # compressed page summary (WPSI)
-browser4-cli htmlsnapshot export [--file <path>] [--clean]  # save snapshot HTML to file
-browser4-cli htmlsnapshot get all <field> [selector] [name] [--offset N] [--limit N] [--absolute] [--page N] [--page-size N] [--all]  # extract ALL matches; html paginated at 2K lines, text/textcontent not paginated
-browser4-cli htmlsnapshot grep [OPTIONS] <pattern> [--page N] [--page-size N] [--all]  # search snapshot HTML with regex; paginated by default (2K lines)
-browser4-cli htmlsnapshot inspect [selector] [--max N] [--depth D]  # analyze DOM structure, suggest CSS selectors
+browser4-cli htmlsnapshot                                # capture the active tab and return its metadata (the same capture every htmlsnapshot command runs)
+browser4-cli htmlsnapshot get <field> [selector] [name] [--absolute] [--page N] [--page-size N] [--all] [--expires DUR]  # read text/textcontent/html/attr via CSS from a fresh snapshot of the active page; html paginated at 2K lines, text not paginated
+browser4-cli htmlsnapshot query [url] --sql <query> [--format json|csv|table] [--expires DUR]  # X-SQL over the active page's fresh snapshot, or over an explicit url's stored page (see Query below)
+browser4-cli htmlsnapshot summary [--expires DUR]        # compressed page summary (WPSI) of the active page's fresh snapshot
+browser4-cli htmlsnapshot export [--file <path>] [--clean] [--expires DUR]  # save a fresh snapshot of the active page to a file
+browser4-cli htmlsnapshot get all <field> [selector] [name] [--offset N] [--limit N] [--absolute] [--page N] [--page-size N] [--all] [--expires DUR]  # read ALL matches; html paginated at 2K lines, text not paginated
+browser4-cli htmlsnapshot grep [OPTIONS] <pattern> [--page N] [--page-size N] [--all] [--expires DUR]  # search a fresh snapshot of the active page with regex; paginated by default (2K lines)
+browser4-cli htmlsnapshot inspect [selector] [--max N] [--depth D] [--expires DUR]  # analyze a fresh snapshot of the active page, suggest CSS selectors
+browser4-cli htmlsnapshot readability [url] [--text-only] [--page N] [--page-size N] [--all] [--expires DUR]  # one-step article extraction from the active page (or an explicit url's stored page); no LLM, no selectors
 ```
 
-`htmlsnapshot` (capture) takes a static HTML snapshot of the current page, stores it, and returns enriched metadata including image/link counts and a list of interactive elements (with tag, class, id, aria attributes, and bounding box). **Capturing is optional:** `get` / `get all` / `inspect` / `summary` / `grep` / `export` and `query` all serve the **live DOM of the active tab**, so they always see the page as it is right now — the stored capture is metadata plus an archived copy, never the read source. The only precondition is a loaded, navigable page (http(s)/file).
+`htmlsnapshot` (capture) serializes the document the active tab is showing, stores it under that tab's normalized URL, and returns enriched metadata including image/link counts and a list of interactive elements (with tag, class, id, aria attributes, and bounding box).
 
-> **Note:** `htmlsnapshot get` looks up the page using the browser's current URL (after any redirects/navigations), so it works correctly on search-results pages and post-form-submission pages.
+**Every command works on a fresh snapshot of the active page.** A command first *captures* the active tab — serializing the document the tab already shows, without navigating — and then operates on that snapshot:
+
+- `htmlsnapshot` (capture) **returns** the snapshot's metadata;
+- `get` / `get all` / `inspect` / `summary` / `grep` / `export` / `query` / `readability` **consume** it.
+
+So a read already sees the page as it is right now — form results, SPA updates, `eval` mutations, login state — with no separate capture. Two consequences are worth knowing:
+
+1. **A read of the active page also archives it**, under the tab's own normalized URL, overwriting the stored copy (the capture rides on `-expires 0s`, a *cache* flag, not a reload — capture never navigates).
+2. **A read never files a document under a URL you passed.** A URL the tab does not show cannot be captured, so `readability <url>` and `query <url>` keep the read-only path: that URL's own stored copy, or an independent read-only load when the store has nothing.
+
+> **Note:** a read resolves its target from the browser's current URL (after any redirects/navigations), so `get` / `get all` / `summary` / `inspect` / `export` always describe the page the tab is on now, and re-running a read is how you see a page that changed in the tab.
+
+### `--expires` — read the tab, or read the store
+
+Every read accepts `--expires <dur>` (alias `-expires`, default `0s`), with the same meaning as the load option: **how old the stored snapshot of the active page may be before the read takes a new one.**
+
+| Value | What the read serves |
+|---|---|
+| `--expires 0s` (default) | The **live page**: the tab is captured first, exactly as described above. Nothing stored is reused. |
+| `--expires 1d` | The **stored snapshot** while it is younger than a day — the read never touches the tab, so it works on the *previous* snapshot version. When the store has nothing, or its copy is older than the window, the read captures the live page as usual. |
+
+```bash
+# Capture once, then keep reading that exact stored version even while the tab changes
+browser4-cli htmlsnapshot
+browser4-cli htmlsnapshot get text ".price" --expires 1d
+browser4-cli htmlsnapshot query --sql @query.sql --expires 30m
+```
+
+- Prefer `--expires 0s` over the older `-refresh` spelling in scripts: it says *do not reuse a stored copy* and never implies the page is re-fetched.
+- Durations use the `LoadOptions` grammar: `0`, `0s`, `500ms`, `30s`, `10m`, `2h`, `1d`, or ISO-8601 (`PT30S`, `P1D`). A bare non-zero number (`--expires 5`) is **rejected** — `LoadOptions` reads `5` as its always-expired sentinel, so accepting it would silently mean `0s`.
+- `--expires` governs the **active page** only. A read aimed at a URL the tab does not show (`readability <url>`, `query <url>`) is already store-only and is never captured, so the option does not change it.
+- `htmlsnapshot` / `htmlsnapshot capture` has no `--expires`: a capture always writes the live document, which is its purpose. Use a read when you want the stored copy.
+
 
 ## Get — Extract data via CSS selectors
 
@@ -52,8 +85,8 @@ browser4-cli htmlsnapshot get all <text|textcontent|html|attr> <selector> [name]
 
 | Field | Description | Requires `name`? |
 |---|---|---|
-| `text` | Normalized visible text of matched element(s) — jsoup-style whitespace normalization (collapsed, trimmed) | No |
-| `textcontent` | Raw `textContent` — original whitespace and line breaks preserved, only end-trimmed | No |
+| `text` | Normalized text of the matched element(s) — whitespace runs collapsed and trimmed (jsoup-style) | No |
+| `textcontent` | Raw `textContent` of the matched element(s) — original whitespace and line breaks preserved, only end-trimmed. Neither field is a rendered-text (`innerText`) read, so CSS overflow does not clip them | No |
 | `html` | Inner HTML of matched element(s) | No |
 | `attr` | Raw value of a named attribute (often a *relative* URL for `href`/`src`); add `--absolute` to resolve URL-valued attributes against the page URL | **Yes** (3rd argument) |
 
@@ -89,34 +122,34 @@ browser4-cli htmlsnapshot get all text ".result" --offset 10   # skip first 10
 
 If `htmlsnapshot get` returns an empty string when the page clearly has matching elements:
 
-1. **Check the page and selector first** — reads use the live DOM, so an empty result means the selector did not match the current document (re-running `htmlsnapshot` does not change that)
-2. **Verify the CSS selector** with `htmlsnapshot inspect "<selector>"` (shows the match count) or bare `htmlsnapshot inspect` (auto-discovers patterns). Use `htmlsnapshot grep <pattern>` only to search raw HTML *text* — its pattern is a Rust regex, not a CSS selector
+1. **Check the page and the selector first** — the read captured the tab first, so the snapshot *is* the page as it is now; an empty result means the selector did not match it. If the content arrives asynchronously, wait for it (`wait "<css>"`) and read again
+2. **Verify the CSS selector** with `htmlsnapshot inspect "<selector>"` (shows the match count) or bare `htmlsnapshot inspect` (auto-discovers patterns); `htmlsnapshot grep <pattern>` only searches raw HTML *text* — its pattern is a Rust regex, not a CSS selector
 3. **Use `htmlsnapshot query` or `htmlsnapshot get all`** for multiple results or complex queries
-4. **Check page load:** ensure the page finished loading (AJAX content may take time)
+4. **Check page load:** ensure the page finished loading before the capture (AJAX content may take time)
 
-## Query — X-SQL (live current page or independent fetch)
+## Query — X-SQL over the stored page
 
 The `--sql` flag is **required**. Use `@url` as a placeholder for the target URL.
 
 X-SQL uses the **H2 database** SQL dialect with DOM UDFs. Only simple `SELECT ... FROM DOM_LOAD_AND_SELECT(url, cssQuery)` queries are supported — no CTEs, subqueries, `EXPLODE`, or joins.
 
-> **`query` never reads a stored `htmlsnapshot` capture** — its data source depends on the target:
-> - **No URL argument, or a URL matching the session's current page:** the page
->   store is seeded from the session's **live DOM** first (a serialization of the
->   current tab — no navigation, no network re-fetch), then the SQL runs over
->   that live document. Login state, SPA updates and `eval` mutations are all
->   visible. Use this when the data you want only exists in the browser session
->   you are driving.
-> - **An explicit URL that differs from the current page (or a session-less
->   invocation):** the URL is fetched independently through the scrape API and
->   the SQL runs over that fresh fetch (no session state).
+> **`query` refreshes the active page first: it captures the tab, then queries that snapshot.**
+> - **No URL argument, or a URL matching the page the session is showing:** the query
+>   captures the active tab, then runs over the snapshot it just took — so login
+>   state, SPA updates and `eval` mutations are visible without a separate
+>   `htmlsnapshot` capture.
+> - **An explicit URL of another page (with or without a session):** the SQL runs
+>   over that URL's stored copy; when the store has nothing for it, the page is
+>   fetched independently through the read-only scrape path (no session state).
 >   This is the offline/corpus path — querying pages that are not open in any
->   session still works without a browser.
+>   session still works without a browser. A URL the tab does not show cannot be
+>   captured, so the tab's document is never filed under it.
 >
-> Repeated runs against the current page therefore always see the page as it
-> is *right now* in the session — which is also true of every other read
-> (`get` / `get all` / `inspect` / `summary` / `grep` / `export`). A `query` run
-> without an explicit URL argument always targets the current page URL.
+> The same contract holds for every other read (`get` / `get all` / `inspect` /
+> `summary` / `grep` / `export` / `readability`): a read of the active page
+> captures it first and then serves that snapshot; a read of another URL serves
+> that URL's stored copy. A `query` run without an explicit URL argument always
+> targets the current page URL.
 
 > **Important:** `@url` must appear **unquoted** in SQL. `SQLTemplate.createSQL(url)` handles escaping internally.
 > - ✅ `FROM DOM_LOAD_AND_SELECT(@url, ':root')`
@@ -213,11 +246,32 @@ To control caching or rendering, append load options to the URL (e.g. `https://e
 
 ## Summary — Web Page Summary Index (WPSI)
 
-Generates a deterministic, AI-readable compressed page summary as a YAML file. The compression ratio depends on page structure: text-heavy pages surrounded by lots of boilerplate collapse dramatically, while compact, dense listing pages (many short repeated items with little surrounding markup) can leave the summary at a sizeable fraction of the original HTML — no fixed ratio is guaranteed. Includes page metadata, structure landmarks, key content nodes with CSS selector hints, list/table detection, and stats. Reads the live page — no prior capture required.
+Generates a deterministic, AI-readable compressed page summary as a YAML file (typically <1% of the original HTML, but the compression ratio depends on page structure: text-heavy pages surrounded by boilerplate collapse dramatically, while compact, dense listing pages — many short repeated items with little surrounding markup — can leave the summary at a sizeable fraction of the original, so no fixed ratio is guaranteed). Includes page metadata, structure landmarks, key content nodes with CSS selector hints, list/table detection, and stats. Summarizes a **fresh snapshot of the active page** — the tab is captured first, so the summary is the page as it is now.
 
 ```bash
 browser4-cli htmlsnapshot summary
+browser4-cli htmlsnapshot summary --algorithm wpsi   # explicit built-in algorithm (default)
+browser4-cli htmlsnapshot summary --expires 1d       # summarize the stored snapshot instead of the live page
+browser4-cli htmlsnapshot summary --raw              # print the summary content, not the outline
+browser4-cli htmlsnapshot summary -v                 # outline with internal scores and legend
 ```
+
+The summarization algorithm is **pluggable**. The built-in algorithm is `wpsi`; installed Browser4 plugins can contribute additional algorithm ids. List what is installed with:
+
+```bash
+browser4-cli htmlsnapshot algorithms          # human-readable table, the default is marked
+browser4-cli htmlsnapshot algorithms --json   # raw JSON array (id/displayName/description/version/builtin/default)
+```
+
+`htmlsnapshot algorithms` needs no open page or session. An unknown `--algorithm <id>` fails with the list of available ids. Output of non-`wpsi` algorithms is printed verbatim (the full content is still saved to a file).
+
+**Overriding the default algorithm:**
+The server-side default can be changed with the Spring property
+`browser4.htmlsnapshot.summary.algorithm=<id>` (e.g. in
+`application.properties` or as a `-D` system property). After plugins are
+wired, `PluginManager` applies the configured value so that plain
+`htmlsnapshot summary` (no `--algorithm`) runs your algorithm. If the id
+is not registered, summary calls fail fast with the available list.
 
 ## Export
 
@@ -375,9 +429,9 @@ The "Sample structure" tree lists each match's **direct children only** (one lev
 ### Tips
 
 - **List pages vs detail pages:** `inspect` finds **recurring** patterns — it shines on list/grid pages (search results, product cards, tables). A single product/article/detail page has no repeating block, so inspect may surface nothing (or an unrelated side rail). For detail pages use `htmlsnapshot summary` (visual clustering) to discover the main content selectors, then read them with explicit selectors (`htmlsnapshot get text "h1"`). When inspect finds nothing recurring it prints "No recurring pattern found" and points to `summary`.
-- **Start without arguments:** `htmlsnapshot inspect` (no selector) triggers auto-discovery and finds the page's most prominent repeating content pattern. This answers **"what repeats on this page?"** (product cards, article lists) — it does NOT show page landmarks. For a header/nav/main/aside/footer outline, run `htmlsnapshot summary`.
-- **Start broad, then narrow:** First run bare `inspect` to find the repeating container (e.g. `.product_pod`, `.s-result-item`), then inspect that container explicitly.
-- **No capture required:** `inspect` analyzes the **live page** of the active tab — there is no cached document to load first.
+- **Start without arguments:** `htmlsnapshot inspect` (no selector) triggers auto-discovery and finds the page's most prominent repeating content pattern. This is the quickest way to discover selectors on an unfamiliar page. It answers **"what repeats on this page?"** (product cards, article lists) — it does NOT show page landmarks; for a header/nav/main/aside/footer outline, run `htmlsnapshot summary`.
+- **Start broad, then narrow:** First run without a selector to find the repeating container (e.g. `.product_pod`, `.s-result-item`), then inspect that container explicitly.
+- **Inspect the live page:** `inspect` captures the active page itself and analyzes that snapshot, so it always inspects the page as the tab shows it now — there is no cached document to load first and no capture step to remember.
 - **Use with `get`:** Take the suggested selectors and use them with `htmlsnapshot get all` or `htmlsnapshot query` for batch extraction.
 - **Clipped sample values:** when a `→ "..."` sample ends with `…`/`...`, the full value may be truncated in the page's own markup — no `text`/`textcontent` field can recover it. inspect points at the carrying attribute (`title`/`aria-label`/`alt`) with a ready `htmlsnapshot get all attr "<selector>" <attribute>` line when it detects one.
 - **Copy-paste quoting:** the "Try these next" commands quote selectors so they survive both PowerShell and POSIX shells (selectors with embedded double quotes, like `[data-loading-text="Adding..."]`, are single-quoted). The rare selector containing BOTH quote styles is printed as two labeled variants — or pass it to inspect itself via `--stdin` / `--selector-base64` / `@file`.
@@ -385,18 +439,70 @@ The "Sample structure" tree lists each match's **direct children only** (one lev
 - **Base64 for portability:** `--sql "$(base64 -w0 query.sql)" --sql-base64` passes SQL safely through any shell, CI pipeline, or HTTP transport with zero quoting issues.
 - **`@file` paths resolve against the Browser4 repo root first**, then fall back to the current working directory — so `cargo run` from `cli/browser4-cli` still finds `query.sql` at the workspace root, while a file that exists only relative to the CWD is picked up by the fallback.
 
+## Readability — One-step article extraction
+
+Extracts the main article content using a deterministic, Readability-style heuristic (the same family of algorithms behind Firefox Reader View). **No LLM, no tokens, no CSS selectors required.** Without a URL it runs on a fresh snapshot of the active page (the tab is captured first); with a URL it reads that URL's own stored copy — or loads it read-only on the shared scrape session when the store has nothing, so **your tab is never navigated** by a read of another page.
+
+```bash
+# Extract the article from the active page's fresh snapshot
+browser4-cli htmlsnapshot readability
+
+# Plain text only (no metadata header), no pagination
+browser4-cli htmlsnapshot readability --text-only --all
+
+# Fetch and extract a specific article URL independently
+browser4-cli htmlsnapshot readability "https://example.com/article"
+```
+
+### Output
+
+Prints a metadata header (title, byline, site name, URL, character count, confidence) followed by the article text, paginated at 2000 lines by default. Use `--text-only` for just the text and `--json` for the full result (cleaned content HTML included under `content`).
+
+| Field | Meaning |
+|---|---|
+| `title` | Page title (falls back to the article H1) |
+| `byline` | Author, when discoverable (`meta[name=author]`, `rel=author`) |
+| `siteName` | Site name, when discoverable (`og:site_name`) |
+| `excerpt` | Meta description, when available |
+| `length` | Article plain-text character count |
+| `confidence` | Coverage ratio — fraction of the page's text captured by the article region |
+| `content` | Cleaned article HTML (classes stripped by default) |
+| `textContent` | Article plain text |
+
+### How it works
+
+1. Pre-clean: scripts, styles, forms, navigation landmarks, and hidden elements are dropped.
+2. Candidate scoring: containers accumulate paragraph text density; link-heavy regions (nav, link farms) score near zero.
+3. The best container is chosen (preferring a real article region over the whole `<body>`), then sanitized: noise widgets, empty elements, and class/id attributes are removed.
+4. Metadata (title, byline, site name, excerpt) is extracted from the document head.
+
+### Positioning vs other commands
+
+- **`readability`** = heuristic article extraction (offline, deterministic, zero tokens) — best for long-form articles and news pages.
+- **`get text "<selector>"`** = explicit CSS extraction — use when you know the structure.
+- **`extract`** = LLM-based natural-language extraction — use for complex instructions (needs an LLM key).
+- **`export --clean`** = whole-page minimal HTML for LLM consumption.
+
+### Error handling
+
+- Fails loudly when the page has no article-like content (text below the ~500-char threshold or no article structure). Try a page with substantial text, or fall back to `htmlsnapshot get text "<selector>"` / `htmlsnapshot inspect`.
+- Reads the active page like `get`/`inspect`/`summary` — capturing the tab first and then extracting from that snapshot — when no URL is given; with a URL argument it reads **that URL's** stored copy, fetched read-only on the shared scrape session when the store has nothing (your tab is never navigated). It never files the tab's document under the URL you pass.
+
 ## Error Handling
 
 - `htmlsnapshot` capture fails if backend is unreachable or page cannot be loaded.
 - `htmlsnapshot get` / `get all` print a diagnostic ("No elements matched …") and exit `0` when the CSS selector matches nothing — consistent with `query`'s "no rows matched is not an error". A non-zero exit means the backend call failed (e.g. an invalid selector or an element ref like `e5`, which `get` does not accept).
 - `htmlsnapshot query` exits nonzero on invalid X-SQL syntax (`400 Bad Request`), a missing `--sql`, or a server error envelope (any `4xx`, including `417 Expectation Failed`, or a `5xx` with an empty resultSet). A `200` envelope with an empty resultSet ("no rows matched") is exit 0.
-- `htmlsnapshot export` / `summary` / `inspect` read the **live page**, so they do not fail for a missing capture — they fail only when there is no loaded, navigable page (about:blank, a non-http(s) document, or a dead session).
+- `htmlsnapshot export` / `summary` / `inspect` / `readability` / `get` / `query` capture the active page first and then serve that snapshot (another URL's command serves that URL's stored copy, or an independent read-only load when the store has nothing). They fail only when the tab shows nothing archivable (about:blank, a non-http(s) document, a browser error page, or a dead session) or when there is no loaded page to resolve an explicit URL against. An unparsable `--expires` value fails the read by name (`Invalid expires value '5' for scrape …`) rather than being ignored.
 
 ## Notes
 
 - `htmlsnapshot get` only accepts CSS selectors. For interactive element interaction, use the standard `snapshot` + ref-based commands.
 - X-SQL queries through `htmlsnapshot query` follow the same constraints as `swarm query`. See [X-SQL reference](x-sql.md) for full function documentation.
-- The stored capture from `htmlsnapshot` (capture) is metadata plus an archived copy; it is **not** the source for any read. Every read command — `get`, `get all`, `inspect`, `summary`, `grep`, `export`, `query` — serializes the **live DOM of the active tab** at call time (falling back to the page store / a fresh capture only when there is no usable live document), so the page is always read as it is right now.
+- Every `htmlsnapshot` command **captures the active page first and then operates on that snapshot** — the family is about the page the tab is showing, so by default no command serves an older copy of it. `htmlsnapshot` (capture) *returns* the snapshot: it serializes the document the active tab is showing and stores it under the tab's **normalized** URL (the store identity), overwriting whatever the store held for that URL. That overwrite relies on the load option `-expires 0s` inside the capture call: it bypasses the process-wide page cache, because `persist` deliberately drops the content of a page whose shell came from that cache (a capture that skipped the cache bypass would report the new document while the store kept the old one). **`-expires 0s` here is a cache flag, not a reload** — capture never navigates, scrolls or re-fetches: the document always comes from the tab, so interactions, SPA state and `eval` mutations survive it, and every read command (`get`, `get all`, `inspect`, `summary`, `grep`, `export`, `query`, `readability`) sees them without a capture of its own. (It replaced the older `-refresh` spelling, which says the same thing — `-refresh` == `-expires 0s -ignoreFailure` — but reads like a page reload, which a capture never does.)
+- The one deliberate exception to "always the live page" is the caller asking for the stored one: `--expires <dur>` on a read serves the stored snapshot of the active page while it is younger than the window, leaving the tab untouched — the way to operate on the *previous* snapshot version. The default `0s` reuses nothing, so the live-page behavior above is what a read does unless it is asked otherwise.
+- The capture is always keyed by the **active tab's own** URL, never by a URL the caller passed. A URL the tab does not show cannot be captured, so those commands (`readability <url>`, `query --url <url>`) keep the read-only path: that URL's stored copy, or an independent read-only load when the store has nothing. This is the invariant that keeps a read from filing the tab's document under a URL it only asked to read.
+- The metadata `url` is the normalized identity; `href` is the raw address the tab reported (query and fragment included). The href is what the browser should be given when something has to be *opened*, the url is what everything is *looked up* by.
 - `htmlsnapshot grep` performs matching **entirely client-side** in the CLI — the full HTML is fetched from the backend once, then all regex matching happens locally. No backend round-trips for the search itself.
 - For CI pass/fail checks with grep, use `-l` (prints "htmlsnapshot" if matches found) or `-c` (prints the number of matching **lines**, not elements — element counts come from `get all`'s count line / `match_count`). A `browser4-cli` non-zero exit code means the backend call itself failed, not that matches were absent.
 - `htmlsnapshot` capture now returns enriched metadata: `imageCount`, `linkCount`, and `interactiveElements` (tag, class, id, aria attributes, bounding-box). The bounding box comes from the `vi` (visual-information) data the Browser4 runtime computes from the live layout and injects **while serializing** the HTML — `vi` itself is deliberately not a DOM attribute, so it only exists in HTML the driver serialized. The capture produces that data on demand, so a session that only navigated (`goto`, tab switch, form submission) still gets boxes, and `htmlsnapshot export` writes `vi` attributes for offline consumers.

@@ -26,6 +26,8 @@ No other SQL syntax is supported — no CTEs (`WITH`), no subqueries in `FROM`, 
 
 **CLI output:** `htmlsnapshot query` / `swarm query` default to the **raw JSON response envelope** (machine-readable). For human-readable results add `--format table` (or `--format csv`); `--result-only` prints just the resultSet. Exit code is `0` on success — an **empty** resultSet still exits `0` ("no rows matched" is not an error) — and nonzero when the server returns any error envelope (`statusCode >= 400`: `400` for X-SQL syntax errors, `417` for scrape-session/H2 engine errors, `5xx` for backend failures). See [htmlsnapshot.md](htmlsnapshot.md#output-format-and-exit-codes).
 
+**Which snapshot is queried:** by default `htmlsnapshot query` captures the active page first and queries that fresh snapshot (live state included). `--expires <dur>` (default `0s`) queries the **stored** snapshot of the active page instead while it is younger than the window — `--expires 1d` re-runs against one fixed page version without touching the tab. See [`--expires`](htmlsnapshot.md#--expires--read-the-tab-or-read-the-store).
+
 X-SQL uses the **H2 database** SQL dialect.
 
 ---
@@ -357,7 +359,7 @@ Scalar functions (input: DOM + selector string, output: scalar)
 >
 > The same comparison **works** in `SELECT` and `ORDER BY` (e.g. `ORDER BY DOM_FIRST_FLOAT(DOM, '.price', 0.0) DESC`), so only predicates need the cast — `STR_FIRST_FLOAT(DOM_FIRST_TEXT(DOM, sel), default)` is the drop-in workaround for `WHERE`/`ORDER BY`.
 
-> **Where `:expr(...)` is evaluated:** PowerCSS `:expr()` visual filters ARE evaluated in the `DOM_LOAD_AND_SELECT` selector (the `FROM` clause) and in `htmlsnapshot get` / `get all` / `inspect` selectors over the live page. Inside **`DOM_FIRST_*`/`DOM_ALL_*` UDF selector arguments** `:expr` is **not reliably evaluated and can silently match nothing** (no error) — in particular the image helpers `DOM_FIRST_IMG`/`DOM_NTH_IMG`/`DOM_ALL_IMGS` ignore `:expr(...)` entirely. Keep UDF selector arguments to plain CSS (e.g. `'img'`) and move visual filters to the `FROM` clause (`DOM_LOAD_AND_SELECT(@url, 'img:expr(width > 250)')`) or to `htmlsnapshot get`/`inspect`; to read image URLs, use `DOM_FIRST_ATTR(DOM, 'img', 'src')`. See [power-dom.md](power-dom.md).
+> **Where `:expr(...)` is evaluated:** PowerCSS `:expr()` visual filters ARE evaluated in the `DOM_LOAD_AND_SELECT` selector (the `FROM` clause) and in `htmlsnapshot get` / `get all` / `inspect` selectors, which run over a fresh snapshot of the active page (the tab is captured first, so they filter the page as it is now). Inside **`DOM_FIRST_*`/`DOM_ALL_*` UDF selector arguments** `:expr` is **not reliably evaluated and can silently match nothing** (no error) — in particular the image helpers `DOM_FIRST_IMG`/`DOM_NTH_IMG`/`DOM_ALL_IMGS` ignore `:expr(...)` entirely. Keep UDF selector arguments to plain CSS (e.g. `'img'`) and move visual filters to the `FROM` clause (`DOM_LOAD_AND_SELECT(@url, 'img:expr(width > 250)')`) or to `htmlsnapshot get`/`inspect`; to read image URLs, use `DOM_FIRST_ATTR(DOM, 'img', 'src')`. See [power-dom.md](power-dom.md).
 
 ### STR Namespace
 

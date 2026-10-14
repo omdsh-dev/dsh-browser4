@@ -38,11 +38,11 @@ browser4-cli agent run "List experience knowledge entries for amazon"
 
 ## 2. Key Concepts
 
-- **Knowledge store** — a local directory tree of memory artifacts (`traces/`, `experience/`, `facts/`); the store layout is described in section 8.
-- **experience_save** — persist a completed task's trace (steps, selectors, extraction results, plus any lessons supplied through `facts`) into the store.
+- **Knowledge store** — a local directory tree of memory artifacts (tasks, traces, index); the store layout is described in section 8.
+- **experience_save** — persist a completed task's trace (selectors, steps, blockers) into the store.
 - **experience_query** — retrieve relevant past traces before starting a new task; returns a replay tier P1-P5.
 - **experience_list** — inspect what is stored, filtered by domain or intent.
-- **Replay tiers** — P1 (replay directly) → P5 (cold start), the confidence ladder used by the Decision Trees in section 4.
+- **Replay tiers** — P1 (replay directly) → P5 (cold start), the confidence ladder used by the Decision Tree in section 4.
 
 ## 3. Command Map
 
@@ -62,19 +62,6 @@ Persists a task execution trace to the knowledge store.
 **Success path:** Knowledge promoted with initial confidence 0.50. Subsequent verified successes raise confidence.
 **Failure path:** Negative evidence recorded (failure category classified from the trace). Failed selectors are **not** automatically turned into anti-patterns — record lessons explicitly with `facts` (e.g. `anti_patterns`) via `experience_save --facts` (or the `facts` argument), or let `experience_deep_learn` promote knowledge later.
 **Response:** the save result includes `facts_merged`, `facts_status`, `facts_rejected`, and `facts_message` when `facts` was supplied.
-
-**Recording a lesson with `facts`:** a lesson (a selector that broke, a blocker, an anti-pattern) can be recorded immediately after the task — no need to wait for `deep_learn`:
-
-```text
-# MCP tool form
-experience_save(url="<target-url>", trace="<execution trace JSON>", outcome="success",
-                intent="extract product details", task_type="extract_product_list",
-                facts='{"interaction_hints":["open the price popover before reading"],
-                        "anti_patterns":["clicking the thumbnail before the modal loads"]}')
-
-# CLI equivalent — trace is inline JSON; --facts accepts inline JSON or @file.json
-browser4-cli experience save "https://example.com/products" '<trace-json>' --facts @lessons.json
-```
 
 ### experience_query
 
@@ -128,7 +115,61 @@ Starting a new task?
 
 ## 6. Critical Warnings
 
-> **Warning:** Phase 1 (MVP) requires the agent to explicitly call `experience_save` after task completion. The automatic engine hook (`onTaskComplete`) is Phase 2+. Forgetting to save means knowledge is lost.
+> **Note:** The automatic engine hook is **live** (since 2026-08-24): `RobustBrowserAgent` auto-deposits completed/failed tasks into the knowledge store (`MemoryConsolidator` → PEM fusion) and auto-injects recalled knowledge into the run-start `## Memory` section. Calling `experience_save` yourself is still supported for richer traces and diagnostics, but forgetting it no longer loses knowledge.
+
+> **Where the knowledge lives:** the store root is the `knowledge.dir` JVM system property, defaulting to a `knowledge/` directory relative to the backend process's working directory (`traces/`, `experience/`, `facts/`). The engine's auto-deposit and these tools resolve the same property, so one `-Dknowledge.dir=<path>` relocates the whole knowledge base; when the CLI starts the backend, pass it as `BROWSER4_SERVER_OPTS="-Dknowledge.dir=<path>"`. See [config.md](../../docs/config.md) and [experience-memory.md](../../docs/experience-memory.md#storage-layout).
+
+### experience_save
+
+Persists a task execution trace to the knowledge store.
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `url` | Yes | The URL the task operated on |
+| `trace` | Yes | JSON-encoded ExecutionTrace (steps, selectors, extraction results) |
+| `outcome` | No | `"success"` (default) or `"failure"` |
+| `task_type` | No | Canonical task type (e.g., `extract_product_list`, `publish_post`) |
+| `intent` | No | Free-text description of what the task was trying to do |
+| `facts` | No | Retrospective knowledge patch (inline JSON, or `@file.json` through the CLI): `selectors` / `interaction_hints` / `known_blockers` / `anti_patterns` (camelCase and snake_case keys both accepted), merged into the `(domain, intent)` facts entry — the writer path for lessons learned. Refused when the entry is VERIFIED (immutable); the response then reports `facts_rejected` |
+
+**Success path:** Knowledge promoted with initial confidence 0.50. Subsequent verified successes raise confidence.
+**Failure path:** Negative evidence recorded (failure category classified from the trace). Failed selectors are **not** automatically turned into anti-patterns — record lessons explicitly with `facts` (e.g. `anti_patterns`) via `experience_save --facts` (or the `facts` argument), or let `experience_deep_learn` promote knowledge later.
+**Response:** the save result includes `facts_merged`, `facts_status`, `facts_rejected`, and `facts_message` when `facts` was supplied.
+
+**Recording a lesson with `facts`:** a lesson (a selector that broke, a blocker, an anti-pattern) can be recorded immediately after the task — no need to wait for `deep_learn`:
+
+```text
+# MCP tool form
+experience_save(url="<target-url>", trace="<execution trace JSON>", outcome="success",
+                intent="extract product details", task_type="extract_product_list",
+                facts='{"interaction_hints":["open the price popover before reading"],
+                        "anti_patterns":["clicking the thumbnail before the modal loads"]}')
+
+# CLI equivalent — trace is inline JSON; --facts accepts inline JSON or @file.json
+browser4-cli experience save "https://example.com/products" '<trace-json>' --facts @lessons.json
+```
+
+### experience_query
+
+Queries stored knowledge before starting a task.
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `url` | Yes | The target URL |
+| `intent` | No | Free-text intent description |
+
+**Returns:** JSON with `tier`, `confidence`, `primary_selectors`, `extraction_query`, `known_blockers`, `warnings`, `steps`.
+
+### experience_list
+
+Lists stored knowledge entries (diagnostic/debug tool).
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `filter` | No | Filter by domain (partial match) |
+| `intent_filter` | No | Filter by intent (partial match) |
+| `page` | No | Page number (default 1) |
+| `page_size` | No | Results per page (default 20, max 100) |
 
 > **Warning:** `experience_query` before `open_session` is supported — it operates on the file system, not the browser. Use it to plan your task before launching Chrome.
 
@@ -140,11 +181,19 @@ Starting a new task?
 
 ### Before a task — query prior knowledge
 
+The store is **file-level YAML per (domain, intent)** — no per-site blob files:
+
+```
+knowledge/                          ← root: relative to the backend process CWD
+├── traces/<domain>/                ← TraceRecords (immutable, 30-day TTL)
+├── experience/<domain>/            ← ExperienceStats (mutable; confidence source)
+└── facts/<domain>/                 ← KnowledgeFacts — one <intent>.yaml per (domain, intent)
+                                      (VERIFIED entries are immutable; merge is refused)
+```
+
 ```text
 experience_query(url="<target-url>", intent="extract product details")
 ```
-
-The response carries `tier` and `confidence`; follow the matching branch of the decision trees in section 4 before spending steps on fresh discovery.
 
 ### After a task — save what you learned
 
@@ -159,7 +208,7 @@ experience_save(url="<target-url>", trace="<execution trace JSON>", outcome="suc
 browser4-cli experience save "https://example.com/products" '<trace-json>' --facts @lessons.json
 ```
 
-A lesson (a selector that broke, a blocker, an anti-pattern) can be recorded immediately after the task with `--facts` — no need to wait for `deep_learn`.
+A lesson (selector that broke, a blocker, an anti-pattern) can be recorded immediately after the task with `--facts` — no need to wait for `deep_learn`.
 
 ### Inspect the store
 
@@ -179,7 +228,10 @@ knowledge/                          ← root: relative to the backend process CW
                                       (VERIFIED entries are immutable; merge is refused)
 ```
 
-## 9. Reference Map
+## 8. Reference Map
 
 - [Design document](../../docs/experience-memory.md) — Full architecture and implementation guide
 - [CLAUDE.md](../../CLAUDE.md) — Project context and conventions
+
+
+

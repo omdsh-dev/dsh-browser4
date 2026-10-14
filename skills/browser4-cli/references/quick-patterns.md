@@ -40,6 +40,7 @@ browser4-cli -s research goto "https://en.wikipedia.org"   # opens "research"
 browser4-cli -s news     goto "https://news.ycombinator.com" # opens "news"
 browser4-cli -s news     snapshot -i --stdout              # act inside "news"
 browser4-cli list                                          # show all sessions
+browser4-cli list --all                                    # + sessions from other checkouts (Workspace column)
 browser4-cli -s news     close                             # close only "news"
 browser4-cli close-all                                     # close every session
 ```
@@ -146,7 +147,8 @@ browser4-cli get text "#contactForm > button.primary"  # verify with the generat
 
 ```bash
 browser4-cli open --headless "https://example.com/product/42"
-browser4-cli htmlsnapshot get text ".product-title"   # reads the live page — capture is optional
+browser4-cli htmlsnapshot                             # snapshot metadata for the page the tab is on
+browser4-cli htmlsnapshot get text ".product-title"   # reads the tab's fresh snapshot (captured here)
 browser4-cli htmlsnapshot get attr ".product-image" src
 ```
 

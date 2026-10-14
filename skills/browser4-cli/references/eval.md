@@ -34,46 +34,21 @@ browser4-cli eval "element => element.textContent" --ref e5
 - **Element properties** (text, attributes, styles, computed values) through element-scoped `--ref`.
 - **Complex transforms** (`JSON.stringify`, array mapping, joins) that would otherwise need several commands.
 
-Prefer a dedicated command when one exists (`click`, `fill`, `snapshot grep`, `htmlsnapshot query`) — `eval` is the general-purpose escape hatch, not the first choice for interaction or bulk extraction. When the question is *which* reading path to take rather than how to phrase the expression, see [decision-trees.md](decision-trees.md).
+Prefer a dedicated command when one exists (`click`, `fill`, `snapshot grep`, `htmlsnapshot query`) — `eval` is the general-purpose escape hatch, not the first choice for interaction or bulk extraction.
 
 ## How It Works
 
-The expression is evaluated over CDP against the live page of the current tab, so it observes whatever the page looks like at that moment — login state, SPA updates, and mutations made by earlier interactions. Two axes are independent: **how the expression arrives** (inline argument, `--file`, `--stdin`/`--js`, or `--base64`) and **what it is evaluated against** (the whole page, or a single element when a ref is passed positionally or via `--ref`). Element-scoped evaluation hands the element to the expression as its first argument rather than as a global, which is why the expression must be an arrow function. The CLI prints the expression's return value and never captures console output, so a script written in the natural "compute and log" style yields `null` unless it returns (or ends with) the value. The sections below spell out the concrete invocation forms and the return-value rules.
+The expression is evaluated over CDP against the live page. Input channel and target are independent:
 
-## Invocation forms
+- **Input channel** — inline argument, `--file` (multi-line scripts, no shell quoting), `--stdin` (alias `--js`), or `--base64` (quoting-proof). `--file` also accepts the `@`-prefix convention used across the CLI: `eval --file "@script.js"` behaves like `--sql @query.sql`.
+- **Target** — the page by default, or a single element when a ref (`e5`) is passed positionally or via `--ref`. Element-scoped evaluation passes the element as the expression's first argument, so the expression **MUST be an arrow function**; bare `element.property` does **not** work (the element is an argument, not a global).
 
-| Form | Command | Best for |
-|---|---|---|
-| Inline | `browser4-cli eval "document.title"` | Simple expressions |
-| File | `browser4-cli eval --file script.js` | Multi-line scripts, no shell quoting |
-| Stdin | `echo 'document.title' \| browser4-cli eval --stdin` | Heredocs / one-liners with complex quoting |
-| Stdin shorthand | `browser4-cli eval --js` | `--js` is an alias for `--stdin` |
-| Base64 | `browser4-cli eval --base64 <b64>` | Inline, quoting-proof (Windows PowerShell: `[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('expr'))`) |
-| JSON wrap | `browser4-cli eval --json "document.title"` | Machine-readable output (scalars get quoted) |
-| Async | `browser4-cli eval --await "fetch('/api').then(r => r.json())"` | Expressions returning a Promise (fetch, async work) |
-| Wait for render | `browser4-cli eval --wait-selector ".result" --wait-timeout 10000 "document.querySelector('.result').textContent"` | SPA/React pages that render asynchronously (default timeout: 30000 ms) |
-| Element-scoped | `browser4-cli eval "element => element.textContent" --ref e5` | Read a specific element's properties |
+Return-value semantics:
 
-`--file` also accepts the `@`-prefix file convention used across the CLI: `eval --file "@script.js"` behaves like `--sql @query.sql`.
-
-## Element-scoped evaluation (--ref / positional ref)
-
-Pass an element ref (`e5`) positionally or via `--ref`, and the expression receives the element as its first argument. The expression **MUST be an arrow function**:
-
-```bash
-browser4-cli eval "element => element.textContent" e5       # text of e5
-browser4-cli eval "element => element.getAttribute('href')" --ref e5
-browser4-cli eval --file script.js e5                       # file content + positional ref
-```
-
-`element => element.property` works; bare `element.property` does **not** (the element is an argument, not a global).
-
-## Return-value semantics
-
-- Only the expression's **return value** is printed: `null` for JS null/undefined, `""` for an empty string, or the value itself otherwise. JS exceptions are surfaced as errors.
-- **`console.log()` output is NOT captured.** Scripts written in the natural "compute and log" style print only the value of the last statement (often `null`). Use `return` (or end with the value) for anything you want to see — the CLI prints a reminder when it detects `console.log` in the expression.
+- `null` for JS null/undefined, `""` for an empty string, otherwise the value itself.
 - Objects and arrays are serialized as valid JSON.
 - `--json` wraps the result in the CLI's JSON envelope; scalar results become quoted strings, numbers/booleans/null pass through.
+- **`console.log()` is not captured.** Scripts written in the natural "compute and log" style print only the value of the last statement (often `null`). Use `return` (or end with the value); the CLI prints a reminder when it detects `console.log` in the expression.
 
 ## Patterns
 
@@ -131,7 +106,7 @@ browser4-cli eval --file page_info.js --json
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Printed value is `null` although the script computes something | `console.log` output is not captured; the value of the last statement is | End with the value or use `return` |
+| Printed value is `null` although the script computes something | `console.log` output is not captured; the last statement's value is | End with the value or use `return` |
 | `element is not defined` | The expression used `element.property` instead of an arrow function | Write `element => element.property` and pass the ref (`--ref e5` or positionally) |
 | Expression mangled by the shell | Quotes stripped by bash/PowerShell before the CLI sees them | Use `--file`, `--stdin`/`--js`, `--base64`, or see [shell-quoting.md](shell-quoting.md) |
 | JS exception reported as a CLI error | The expression threw in the page (typo, missing element) | Guard with optional chaining or select the element first |

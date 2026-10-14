@@ -77,6 +77,19 @@ Uploading can change the page (file name chips, previews, enabled submit buttons
 |--------|-------------|
 | `--no-snapshot` | Skip the automatic post-command accessibility snapshot (interaction commands capture one by default) |
 
+Arguments are positional — one target followed by one or more files:
+
+| Position | Description |
+|----------|-------------|
+| `<ref>` | Snapshot ref (`e5`) or CSS selector (`"#file-input"`, `input[type=file]`) naming the `<input type="file">` |
+| `<file> [file...]` | One or more file paths; a multi-select input receives every listed file in a single call |
+
+Rules that apply to every invocation:
+
+- Paths must be readable by the **browser process** — locally that is your machine; against a remote backend they are resolved on the backend host.
+- Local mode rejects empty files and missing paths before the CDP call, naming the offending path.
+- Uploading is one CDP call (`DOM.setFileInputFiles`) on the element's `backendNodeId`: no OS file dialog is involved, so it works headless.
+
 ## Errors & Recovery
 
 | Symptom | Cause | Fix |
