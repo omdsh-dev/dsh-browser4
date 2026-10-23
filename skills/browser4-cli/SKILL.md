@@ -130,10 +130,14 @@ Set the display mode with `open` when starting a **new** session; `goto` does no
 ```bash
 browser4-cli open --headless https://example.com     # headless (preferred default)
 browser4-cli open --headed https://example.com       # headed (only when user asks)
+browser4-cli open --display-mode GUI https://example.com  # same axis, backend spelling
+browser4-cli open --max-open-tabs 4 https://example.com   # cap the session's tab count
 browser4-cli goto https://other-page.com             # stays headless (or headed) as set by open
 ```
 
 > **Notes:** When `goto` is the very first command (no prior `open`), it auto-opens a new session using the CLI's default display mode, which is headless. `--headless`/`--headed` only take effect when **creating** a new session — when `open` reconnects to a running session they are ignored (the CLI warns on stderr). To change the mode, `close` first, then `open --headless`. Use `open --fresh` to discard a stale session's tabs/cookies/location entirely and start clean.
+>
+> `--display-mode GUI|HEADLESS|SUPERVISED` is the backend's own display capability (the one `swarm create --display-mode` also sets). It carries the display choice **by itself** — combining it with `--headed`/`--headless` is a usage error, and the mode is still fixed at session creation. `--max-open-tabs <n>` (positive integer) caps the tabs of the session's browser context.
 
 ### Sessions
 
@@ -245,7 +249,7 @@ session** and prints what it applied (`✓ Geolocation emulated: latitude=31.23,
 | `goto`, `open`, `close`, `close-all`, `reload` | Navigation & session management | Every session starts here; `close-all` cleans up every session | — |
 | `snapshot` | Capture accessibility tree (AXTree) with element refs; `/url` lines for links are opt-in via `-u`/`--urls`; `--selector` fails loudly when the CSS selector matches nothing | **Page structure & interaction** — find elements to click, fill, etc. Use `snapshot` when you need refs (e5, e36) to interact with. | [snapshot.md](references/snapshot.md) |
 | `snapshot grep` | Search the live full-page AX tree with regex (not the last saved file; add `--diff` to search the persisted auto-diff report of the last `snapshot --auto-diff` instead) | Find elements by text or pattern. Patterns are **Rust regex** — `\|` is alternation, and a literal `$` is safest written `[$]` (`-i`, `-A/-B/-C`, `-F`, `-v`, `-c`, `-l` supported). Zero matches = exit 1 | — |
-| `click`, `dblclick`, `drag`, `hover`, `mousemove`, `fill`, `type`, `press`, `select`, `check`, `generate-locator` | Page interaction | Form filling, button clicks, mouse actions, navigation. Clicks/hovers move the pointer onto the element first; `mousemove 5 5` clears a lingering `:hover`. `type --method auto\|chars\|exec` (needs a target ref) bulk-inserts long (>150 chars) or multi-line text in one `execCommand('insertText')` instead of typing per character | — |
+| `click`, `dblclick`, `drag`, `hover`, `mousemove`, `fill`, `type`, `press`, `select`, `check`, `generate-locator` | Page interaction | Form filling, button clicks, mouse actions, navigation. Clicks/hovers move the pointer onto the element first; `mousemove 5 5` clears a lingering `:hover`. `click --count <n>` clicks the same element n times in one call (2 = double click, 3 = triple click for selecting a line) — combine it with `--button`, never with `--modifiers`. `type --method auto\|chars\|exec` (needs a target ref) bulk-inserts long (>150 chars) or multi-line text in one `execCommand('insertText')` instead of typing per character | — |
 | `upload <ref> <file> [file...]` | Upload local files to a page file input | Send attachments/photos/documents to an `<input type="file">`; the target must be a file input, paths must be readable on the machine running the browser | [upload.md](references/upload.md) |
 | `focus`, `key`, `keyboard` | Focus an element / press a key (key & keyboard alias `press`) | Explicit focus before typing, agent-browser-style keypresses | — |
 | `is visible\|enabled\|checked <sel>` | Element state assertions | Verify visibility, enabled-ness, or checked state before acting. Prints `true`/`false` (and `null` from `is enabled` on a missing selector) and exits 0 on current builds — read the value, or use `--json` (see §5) | — |
@@ -304,8 +308,9 @@ browser4-cli skills unpack                  # Unpack bundled skill files to disk
 
 Skill files are unpacked automatically during `browser4-cli install` (and refreshed by `upgrade`);
 unchanged files are skipped, so re-running is cheap. `install` / `upgrade` also copy the bundled
-skills into `~/.agents/skills` so agents (e.g. Codex) load them automatically. Overrides:
-`BROWSER4_SKILLS_DIR`, `BROWSER4_AGENTS_SKILLS_DIR`.
+skills into `~/.agents/skills` so agents (e.g. Codex) load them automatically — only the
+`browser4-cli` skill is synced there by default; use `skills unpack <dest>` to unpack everything.
+Overrides: `BROWSER4_SKILLS_DIR`, `BROWSER4_AGENTS_SKILLS_DIR`.
 
 ## 4. Decision Trees
 
@@ -426,7 +431,7 @@ Proven copy-paste recipes — full walkthroughs in **[quick-patterns.md](referen
 
 **Resilient selectors (PowerCSS):** `div:expr(width > 400 && height > 400)` filters by computed geometry/position/content density instead of class names, so it survives markup changes — usable in any CSS selector and in `htmlsnapshot get` / X-SQL selectors. Operators: [power-dom.md](references/power-dom.md); refs → selectors: [css-selector-bridge.md](references/css-selector-bridge.md).
 
-**AI-powered extraction:** `agent run "<task>"` submits an async task — poll `agent status <id>` and read `agent result <id>`. Both answer the shared task envelope (`{taskId, status, statusCode, message, error, …}`, vocabulary `queued|running|done|failed|cancelled`), so **`status: "done"` is the completion check** (terminal: `done`/`failed`/`cancelled`), and the payload carries the agent's `keyFindings`, `filesChanged` and the `workspace` its deliverables live in. `agent list` shows the same knowledge, refreshed from the backend on every call; `extract` / `summarize` are the synchronous variants. See [agent.md](references/agent.md).
+**AI-powered extraction:** `agent run "<task>"` submits an async task — poll `agent status <id>` and read `agent result <id>`. Both answer the shared task envelope (`{taskId, status, statusCode, message, error, elapsedMs, …}`, vocabulary `queued|running|done|failed|cancelled`), so **`status: "done"` is the completion check** (terminal: `done`/`failed`/`cancelled`), and the payload carries the agent's `keyFindings`, `filesChanged` and the `workspace` its deliverables live in. `elapsedMs` tells a long-running task from one that just started. `agent list` shows the same knowledge, refreshed from the backend on every call; `extract` / `summarize` are the synchronous variants. See [agent.md](references/agent.md).
 
 ## 7. Reference Map
 
