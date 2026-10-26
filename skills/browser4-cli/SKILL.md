@@ -384,14 +384,14 @@ Proven copy-paste recipes — full walkthroughs in **[quick-patterns.md](referen
 7. **Static Data Extraction** — `get text` / `get attr "<css>"` straight off the live page: every `htmlsnapshot` read captures the active tab itself, so nothing has to be captured first
 8. **Bulk Extraction (X-SQL)** — correlated fields via `--sql @query.sql` with `DOM_LOAD_AND_SELECT(@url, '.product-card')`
 9. **PowerCSS** — `:expr()` visual-feature selectors; full reference in [power-dom.md](references/power-dom.md)
-10. **Agent Task Lifecycle** — `agent run` (async) → `status` → `result`; or `--wait [--wait-timeout]`. Task type is browser by default; `--coding` explicitly marks a pure file/build task (never auto-detected)
+10. **Agent Task Lifecycle** — `agent run` (async) → `status` → `result`; or `--wait [--wait-timeout]`; `--follow` streams every step (add `--ndjson` for one JSON object per line); `-i` opens an interactive session where a line typed while a task runs steers it, and `/stats` reports what the run cost (LLM rounds/requests, tokens, tool calls). Task type is browser by default; `--coding` explicitly marks a pure file/build task (never auto-detected)
 11. **Agent Memory** — run-start `## Memory` recall, `memory_note`, `memory_search`/`read`/`forget`, auto-deposit
 12. **Typing text (`type`)** — `type "text" <ref>`; add `--method auto|chars|exec` (requires a target ref): `auto` (default) types short text per-character and switches to a one-shot `execCommand('insertText')` bulk insert for long (>150 chars) or multi-line text on textarea/contenteditable; `chars` forces per-character typing; `exec` forces the bulk insert. `--verify` keeps its strict read-back semantics for tool callers.
 13. **File Upload** — `upload <ref> <file> [file...]` uploads one or more local files to a page file input (`<input type="file">` only); the paths must be readable by the browser process (remote backend: resolved on the backend host). Multi-file, absolute paths, `--no-snapshot` supported; see [upload.md](references/upload.md).
 
 **Resilient selectors (PowerCSS):** `div:expr(width > 400 && height > 400)` filters by computed geometry/position/content density instead of class names, so it survives markup changes — usable in any CSS selector and in `htmlsnapshot get` / X-SQL selectors. Operators: [power-dom.md](references/power-dom.md); refs → selectors: [css-selector-bridge.md](references/css-selector-bridge.md).
 
-**AI-powered extraction:** `agent run "<task>"` submits an async task — poll `agent status <id>` and read `agent result <id>`. Both answer the shared task envelope (`{taskId, status, statusCode, message, error, elapsedMs, …}`, vocabulary `queued|running|done|failed|cancelled`), so **`status: "done"` is the completion check** (terminal: `done`/`failed`/`cancelled`), and the payload carries the agent's `keyFindings`, `filesChanged` and the `workspace` its deliverables live in. `elapsedMs` tells a long-running task from one that just started. `agent list` shows the same knowledge, refreshed from the backend on every call; `extract` / `summarize` are the synchronous variants. See [agent.md](references/agent.md).
+**AI-powered extraction:** `agent run "<task>"` submits an async task — poll `agent status <id>` and read `agent result <id>`. Both answer the shared task envelope (`{taskId, status, statusCode, message, error, elapsedMs, …}`, vocabulary `queued|running|done|failed|cancelled`), so **`status: "done"` is the completion check** (terminal: `done`/`failed`/`cancelled`), and the payload carries the agent's `keyFindings`, `filesChanged` and the `workspace` its deliverables live in. `elapsedMs` tells a long-running task from one that just started. `agent list` shows the same knowledge, refreshed from the backend on every call; `extract` / `summarize` are the synchronous variants. `--follow` prints the task's steps live (`[00:03] #1 b4.run(…)`, the model's own text, slow/failed tools) and ends with the result; `--ndjson` emits the same stream as one JSON object per line; `agent run -i` keeps a session open, a line typed while a task runs is injected into it (steering) instead of becoming a second task, and `/stats` reports that run's LLM rounds/requests, token usage and tool calls. See [agent.md](references/agent.md).
 
 ## 7. Reference Map
 
@@ -462,9 +462,11 @@ to the script internally.
 ### Prerequisites
 
 **Java 25 or newer** is required to build or run the backend server and
-MockSite — the root pom's Maven enforcer rejects older JDKs.  Check with
-`java -version`; if the default JDK is older, point `JAVA_HOME` at a 25+ JDK
-before starting anything (e.g. `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64`).
+MockSite — the root pom's Maven enforcer rejects older JDKs.  The `b4w`
+bundle rebuild auto-selects the newest installed JDK 25+ when `JAVA_HOME` is
+unset or points at an older JDK, so `./b4w.sh open` works even when `java` on
+`PATH` is older.  A manual `./mvnw` build still needs a 25+ JDK in `JAVA_HOME`
+(e.g. `export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64`).
 Running from a repository checkout also needs **Rust** (`cargo`) for the CLI
 and **Git**.
 
